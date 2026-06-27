@@ -1,0 +1,14 @@
+{
+  "image_height": 80,
+  "image_width": 160,
+  "channels": 3,
+  "crop_top_ratio": 0.25,
+  "normalization": "uint8/255.0",
+  "commands": {
+    "0": "STRAIGHT",
+    "1": "LEFT",
+    "2": "RIGHT"
+  },
+  "seed": 19,
+  "validation_mae_target_rad": 0.05
+}

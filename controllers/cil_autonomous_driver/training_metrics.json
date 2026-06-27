@@ -1,0 +1,25 @@
+{
+  "validation_mae_rad": 0.022006014361977577,
+  "validation_mse": 0.001179361017420888,
+  "per_command": [
+    {
+      "command": "STRAIGHT",
+      "samples": 240,
+      "mae_rad": 0.01518306229263544
+    },
+    {
+      "command": "LEFT",
+      "samples": 379,
+      "mae_rad": 0.024078940972685814
+    },
+    {
+      "command": "RIGHT",
+      "samples": 607,
+      "mae_rad": 0.02340942621231079
+    }
+  ],
+  "augmented_samples": 12956,
+  "train_samples": 11730,
+  "validation_samples": 1226,
+  "source_overlap": 0
+}

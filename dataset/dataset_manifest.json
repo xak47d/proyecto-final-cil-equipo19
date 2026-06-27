@@ -1,0 +1,23 @@
+{
+  "schema": [
+    "image",
+    "steering_angle",
+    "command"
+  ],
+  "commands": {
+    "0": "STRAIGHT",
+    "1": "LEFT",
+    "2": "RIGHT"
+  },
+  "source_had_header": false,
+  "records": 6129,
+  "images": 6129,
+  "excluded_recovery_records": 321,
+  "command_counts": {
+    "0": 1202,
+    "1": 1895,
+    "2": 3032
+  },
+  "missing_images": 0,
+  "unreferenced_images": 0
+}
