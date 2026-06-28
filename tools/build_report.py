@@ -31,6 +31,61 @@ LIGHT_GRAY = "F2F4F7"
 GREEN = "E2F0D9"
 AMBER = "FFF2CC"
 RED = "FCE4D6"
+BLACK = RGBColor(0, 0, 0)
+
+
+def set_run_font(run, name: str, size: float) -> None:
+    """Set a font deterministically for Word and LibreOffice renderers."""
+    run.font.name = name
+    run.font.size = Pt(size)
+    run.font.color.rgb = BLACK
+    r_fonts = run._element.get_or_add_rPr().get_or_add_rFonts()
+    for key in ("ascii", "hAnsi", "eastAsia", "cs"):
+        r_fonts.set(qn(f"w:{key}"), name)
+
+
+def iter_paragraphs(container):
+    """Yield paragraphs in a document part, including nested table cells."""
+    yield from container.paragraphs
+    for table in container.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                yield from iter_paragraphs(cell)
+
+
+def enforce_requested_typography(document) -> None:
+    """Arial 12 pt and black everywhere, except monospaced code snippets."""
+    for style_name in (
+        "Normal",
+        "Title",
+        "Subtitle",
+        "Heading 1",
+        "Heading 2",
+        "Heading 3",
+        "Header",
+        "Footer",
+        "List Bullet",
+        "List Bullet 2",
+    ):
+        style = document.styles[style_name]
+        style.font.name = "Arial"
+        style.font.size = Pt(12)
+        style.font.color.rgb = BLACK
+        r_fonts = style._element.get_or_add_rPr().get_or_add_rFonts()
+        for key in ("ascii", "hAnsi", "eastAsia", "cs"):
+            r_fonts.set(qn(f"w:{key}"), "Arial")
+
+    containers = [document]
+    for section in document.sections:
+        containers.extend((section.header, section.footer))
+    for container in containers:
+        for paragraph in iter_paragraphs(container):
+            for run in paragraph.runs:
+                current = (run.font.name or "").lower()
+                if current in {"menlo", "consolas", "courier new"}:
+                    set_run_font(run, "Menlo", run.font.size.pt if run.font.size else 6.8)
+                else:
+                    set_run_font(run, "Arial", 12)
 
 
 def set_cell_shading(cell, fill: str) -> None:
@@ -63,20 +118,34 @@ def keep_row(row) -> None:
     tr_pr.append(OxmlElement("w:cantSplit"))
 
 
+def repeat_header_row(row) -> None:
+    """Repeat table headers and keep them attached to the first body row."""
+    tr_pr = row._tr.get_or_add_trPr()
+    tbl_header = OxmlElement("w:tblHeader")
+    tbl_header.set(qn("w:val"), "true")
+    tr_pr.append(tbl_header)
+    keep_row(row)
+    for cell in row.cells:
+        for paragraph in cell.paragraphs:
+            paragraph.paragraph_format.keep_with_next = True
+
+
 def add_table(doc, headers, rows, widths=None, status_col=None):
     table = doc.add_table(rows=1, cols=len(headers))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
     table.style = "Table Grid"
+    repeat_header_row(table.rows[0])
     for i, header in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = str(header)
-        set_cell_shading(cell, DARK_BLUE)
+        set_cell_shading(cell, "E7E6E6")
         cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        set_cell_margins(cell)
         for run in cell.paragraphs[0].runs:
             run.font.bold = True
-            run.font.color.rgb = RGBColor(255, 255, 255)
-            run.font.size = Pt(9)
+            run.font.color.rgb = BLACK
+            run.font.size = Pt(12)
     for row_data in rows:
         cells = table.add_row().cells
         keep_row(table.rows[-1])
@@ -90,7 +159,7 @@ def add_table(doc, headers, rows, widths=None, status_col=None):
             for para in cells[i].paragraphs:
                 para.paragraph_format.space_after = Pt(2)
                 for run in para.runs:
-                    run.font.size = Pt(8.5)
+                    run.font.size = Pt(12)
             set_cell_margins(cells[i])
     if widths:
         for row in table.rows:
@@ -103,7 +172,7 @@ def add_table(doc, headers, rows, widths=None, status_col=None):
 def add_page_number(paragraph) -> None:
     paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     run = paragraph.add_run("Página ")
-    run.font.size = Pt(8)
+    set_run_font(run, "Arial", 12)
     fld = OxmlElement("w:fldSimple")
     fld.set(qn("w:instr"), "PAGE")
     run._r.addnext(fld)
@@ -114,9 +183,9 @@ def add_caption(doc, text: str) -> None:
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(8)
     r = p.add_run(text)
-    r.font.size = Pt(8.5)
+    r.font.size = Pt(12)
     r.font.italic = True
-    r.font.color.rgb = RGBColor(89, 89, 89)
+    r.font.color.rgb = BLACK
 
 
 def add_figure(doc, path: Path, caption: str, width=6.4) -> None:
@@ -146,7 +215,7 @@ def add_note(doc, title: str, body: str, fill=LIGHT_BLUE) -> None:
     p.paragraph_format.space_after = Pt(2)
     r = p.add_run(title + ". ")
     r.bold = True
-    r.font.color.rgb = RGBColor.from_string(DARK_BLUE)
+    r.font.color.rgb = BLACK
     p.add_run(body)
     doc.add_paragraph().paragraph_format.space_after = Pt(0)
 
@@ -166,32 +235,31 @@ def add_code(doc, title: str, code: str, font_size=6.8, chunk_size=32) -> None:
         shd.set(qn("w:fill"), "F7F7F7")
         p_pr.append(shd)
         r = p.add_run("\n".join(lines[start : start + chunk_size]))
-        r.font.name = "Menlo"
-        r._element.rPr.rFonts.set(qn("w:eastAsia"), "Menlo")
-        r.font.size = Pt(font_size)
+        set_run_font(r, "Menlo", font_size)
 
 
 doc = Document()
 sec = doc.sections[0]
 sec.page_width = Inches(8.5)
 sec.page_height = Inches(11)
-sec.top_margin = Inches(0.78)
-sec.bottom_margin = Inches(0.72)
-sec.left_margin = Inches(0.85)
-sec.right_margin = Inches(0.85)
+sec.top_margin = Inches(1)
+sec.bottom_margin = Inches(1)
+sec.left_margin = Inches(1)
+sec.right_margin = Inches(1)
 
 styles = doc.styles
 normal = styles["Normal"]
-normal.font.name = "Calibri"
-normal.font.size = Pt(10.5)
-normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Calibri")
-normal.paragraph_format.line_spacing = 1.08
+normal.font.name = "Arial"
+normal.font.size = Pt(12)
+normal.font.color.rgb = BLACK
+normal._element.rPr.rFonts.set(qn("w:eastAsia"), "Arial")
+normal.paragraph_format.line_spacing = 1.15
 normal.paragraph_format.space_after = Pt(6)
-for name, size, color in (("Title", 26, DARK_BLUE), ("Heading 1", 16, BLUE), ("Heading 2", 13, DARK_BLUE), ("Heading 3", 11.5, DARK_BLUE)):
+for name in ("Title", "Heading 1", "Heading 2", "Heading 3"):
     style = styles[name]
-    style.font.name = "Calibri"
-    style.font.size = Pt(size)
-    style.font.color.rgb = RGBColor.from_string(color)
+    style.font.name = "Arial"
+    style.font.size = Pt(12)
+    style.font.color.rgb = BLACK
     style.font.bold = True
     style.paragraph_format.space_before = Pt(14 if name != "Title" else 0)
     style.paragraph_format.space_after = Pt(7)
@@ -201,27 +269,24 @@ doc.core_properties.title = "Proyecto Final de Navegación Autónoma — Equipo 
 doc.core_properties.author = "Equipo 19"
 doc.core_properties.subject = "Conditional Imitation Learning y seguridad en Webots R2025a"
 
-# Portada editorial
-for _ in range(3):
-    doc.add_paragraph()
+# Portada basada en Plantilla-Tareas-TEC.docx
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run("PROYECTO FINAL")
-r.font.name = "Calibri"
-r.font.size = Pt(30)
+p.paragraph_format.space_after = Pt(30)
+p.add_run().add_picture(str(FIG / "tec_logo.png"), width=Inches(4.7))
+p = doc.add_paragraph()
+p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+r = p.add_run("Escuela de Ingeniería y Ciencias")
 r.font.bold = True
-r.font.color.rgb = RGBColor.from_string(DARK_BLUE)
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run("Navegación Autónoma con Conditional Imitation Learning")
-r.font.size = Pt(18)
-r.font.color.rgb = RGBColor.from_string(BLUE)
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run("Equipo 19")
+r = p.add_run("Maestría en Inteligencia Artificial Aplicada")
 r.font.size = Pt(16)
 r.font.bold = True
-doc.add_paragraph()
+p = doc.add_paragraph()
+p.paragraph_format.space_after = Pt(8)
+p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+p.add_run("PRESENTA:").bold = True
 add_table(
     doc,
     ["Integrante", "Matrícula"],
@@ -235,10 +300,12 @@ add_table(
 )
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-p.add_run("Curso: Navegación autónoma\n").bold = True
-p.add_run("Profesor: Dr. David Antonio Torres\n")
-p.add_run("Tecnológico de Monterrey\n")
-p.add_run("30 de junio de 2026")
+p.add_run("ACTIVIDAD:\n").bold = True
+p.add_run("Proyecto Final: Navegación Autónoma con Conditional Imitation Learning\n").bold = True
+p.add_run("Equipo 19\n\n").bold = True
+p.add_run("Curso: Navegación autónoma\n")
+p.add_run("Profesor: Dr. David Antonio Torres\n\n")
+p.add_run("30 de junio de 2026").bold = True
 doc.add_page_break()
 
 doc.add_heading("Resumen ejecutivo", level=1)
@@ -325,7 +392,7 @@ doc.add_paragraph(
     "producen un único ángulo de dirección en radianes. Se emplearon semilla reproducible, Adam, pérdida MSE, MAE, "
     "EarlyStopping, ReduceLROnPlateau y checkpoint del mejor HDF5."
 )
-add_figure(doc, FIG / "model_architecture.png", "Figura 2. Arquitectura obtenida directamente del modelo HDF5 entrenado.", width=6.5)
+add_figure(doc, FIG / "model_architecture.png", "Figura 2. Arquitectura obtenida directamente del modelo HDF5 entrenado.", width=5.0)
 add_table(
     doc,
     ["Parámetro", "Valor"],
@@ -537,14 +604,12 @@ doc.add_page_break()
 doc.add_heading("Anexo B. Controlador autónomo completo", level=1)
 doc.add_paragraph("Código íntegro y comentado de `controllers/cil_autonomous_driver/cil_autonomous_driver.py`.")
 add_code(doc, "B.1 Fuente", (ROOT / "controllers/cil_autonomous_driver/cil_autonomous_driver.py").read_text())
-doc.add_page_break()
 doc.add_heading("Anexo C. Celdas de código del notebook", level=1)
 nb = json.loads((ROOT / "Proyecto_Final_Equipo19.ipynb").read_text())
 code_cells = [cell for cell in nb["cells"] if cell.get("cell_type") == "code"]
 for index, cell in enumerate(code_cells, 1):
     source = "".join(cell.get("source", []))
     add_code(doc, f"C.{index} Celda {index}", source)
-doc.add_page_break()
 doc.add_heading("Anexo D. Guion del video", level=1)
 doc.add_paragraph(
     "El guion dura aproximadamente 5:35, distribuye la participación entre los cuatro integrantes y evita "
@@ -571,6 +636,18 @@ for section in doc.sections:
         run.font.size = Pt(8)
         run.font.color.rgb = RGBColor(127, 127, 127)
 
+# La portada de la plantilla TEC no lleva encabezado ni número de página.
+doc.sections[0].different_first_page_header_footer = True
+for first_page_part in (
+    doc.sections[0].first_page_header,
+    doc.sections[0].first_page_footer,
+):
+    first_page_part.is_linked_to_previous = False
+    for paragraph in first_page_part.paragraphs:
+        for child in list(paragraph._p):
+            paragraph._p.remove(child)
+
+enforce_requested_typography(doc)
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 doc.save(OUTPUT)
 print(OUTPUT)
