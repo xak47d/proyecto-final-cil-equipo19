@@ -287,17 +287,16 @@ p = doc.add_paragraph()
 p.paragraph_format.space_after = Pt(8)
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p.add_run("PRESENTA:").bold = True
-add_table(
-    doc,
-    ["Integrante", "Matrícula"],
-    [
-        ("José Antonio Fernández Pérez", "A01795991"),
-        ("Deménard Gardy Armand", "A01797139"),
-        ("Luis Daniel Castillo Alegría", "A01224696"),
-        ("Raúl Adrián Delgado Rodríguez", "A01246414"),
-    ],
-    widths=[4.5, 1.5],
-)
+for name, student_id in (
+    ("José Antonio Fernández Pérez", "A01795991"),
+    ("Deménard Gardy Armand", "A01797139"),
+    ("Luis Daniel Castillo Alegría", "A01224696"),
+    ("Raúl Adrián Delgado Rodríguez", "A01246414"),
+):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_after = Pt(2)
+    p.add_run(f"{name} · {student_id}")
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p.add_run("ACTIVIDAD:\n").bold = True
@@ -623,29 +622,20 @@ add_code(
     chunk_size=100,
 )
 
+# La entrega no lleva encabezados, pies de página ni numeración.
 for section in doc.sections:
-    footer = section.footer
-    footer.is_linked_to_previous = False
-    add_page_number(footer.paragraphs[0])
-    header = section.header
-    header.is_linked_to_previous = False
-    hp = header.paragraphs[0]
-    hp.text = "Proyecto Final de Navegación Autónoma · Equipo 19"
-    hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    for run in hp.runs:
-        run.font.size = Pt(8)
-        run.font.color.rgb = RGBColor(127, 127, 127)
-
-# La portada de la plantilla TEC no lleva encabezado ni número de página.
-doc.sections[0].different_first_page_header_footer = True
-for first_page_part in (
-    doc.sections[0].first_page_header,
-    doc.sections[0].first_page_footer,
-):
-    first_page_part.is_linked_to_previous = False
-    for paragraph in first_page_part.paragraphs:
-        for child in list(paragraph._p):
-            paragraph._p.remove(child)
+    for part in (
+        section.header,
+        section.footer,
+        section.first_page_header,
+        section.first_page_footer,
+        section.even_page_header,
+        section.even_page_footer,
+    ):
+        part.is_linked_to_previous = False
+        for paragraph in part.paragraphs:
+            for child in list(paragraph._p):
+                paragraph._p.remove(child)
 
 enforce_requested_typography(doc)
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
