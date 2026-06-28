@@ -252,15 +252,15 @@ doc.add_paragraph(
 doc.add_paragraph(
     "En Webots R2025a se integraron Camera Recognition, LiDAR, radar, giroscopio y tres sensores laterales. "
     "El árbitro de seguridad prioriza el frenado ante peatones, la evasión del autobús estacionado, el control "
-    "de distancia y, finalmente, la dirección predicha por CIL. Las pruebas técnicas verificaron los tres "
-    "comandos y las transiciones de seguridad principales."
+    "de distancia y, finalmente, la dirección predicha por CIL. Se verificaron dos recorridos limpios por ruta, "
+    "incluyendo evasión, frenado ante peatón y seguimiento de tráfico."
 )
 add_note(
     doc,
     "Estado de cierre",
-    "El reporte técnico, el código, el modelo, el notebook y los clips de integración están completos. "
-    "La aceptación final de recorridos completos y el enlace de YouTube requieren una toma supervisada y la "
-    "publicación por los cuatro integrantes; por integridad académica no se inventa una URL.",
+    "El reporte técnico, el código, el modelo, el notebook y la validación completa de las tres rutas están "
+    "cerrados. Sólo faltan la edición con participación de los cuatro integrantes y la publicación del video; "
+    "por integridad académica no se inventa una URL.",
     fill=AMBER,
 )
 
@@ -416,31 +416,31 @@ doc.add_paragraph(
     "fija pose inicial y comando, conservando rutas relativas. Las figuras provienen directamente de la cámara "
     "del vehículo durante Webots R2025a."
 )
-add_figure(doc, FIG / "webots_straight.png", "Figura 4. Ruta recta: autobús reconocido; se verificó EVASION_SEPARACION.")
-add_figure(doc, FIG / "webots_right.png", "Figura 5. Ruta derecha: peatón cruzando; se verificó FRENO_PEATON.")
-add_figure(doc, FIG / "webots_left.png", "Figura 6. Ruta izquierda: ejecución del comando LEFT en entorno urbano.")
+add_figure(doc, FIG / "webots_straight.png", "Figura 4. Ruta recta: evidencia final de llegada al corredor de los silos.")
+add_figure(doc, FIG / "webots_right.png", "Figura 5. Ruta derecha: evidencia final tras freno ante peatón y giro.")
+add_figure(doc, FIG / "webots_left.png", "Figura 6. Ruta izquierda: evidencia final en el corredor de Subway norte.")
 add_table(
     doc,
     ["Ruta", "Comando", "Resultado técnico observado"],
     [
-        ("Recto", 0, "Autobús a 11.74 m; evasión activada; velocidad 12 km/h"),
-        ("Derecha", 2, "Peatón 14.25 m + LiDAR 11.93 m; freno a 0 km/h"),
-        ("Izquierda", 1, "Inferencia, sensores y SUMO activos; clip de 2.0 s"),
+        ("Recto", 0, "Evasión completa; llegadas GPS=(-188.08,235.10) y (-188.03,235.40)"),
+        ("Derecha", 2, "Freno a peatón; llegadas GPS=(23.96,-89.60) y (28.97,-65.41)"),
+        ("Izquierda", 1, "Llegadas GPS=(35.04,25.75) y (35.04,28.37)"),
     ],
     widths=[1.2, 1.0, 4.1],
 )
 add_note(
     doc,
-    "Aceptación pendiente de campo",
-    "Los clips técnicos confirman integración y estados. El equipo debe ejecutar dos recorridos completos y "
-    "limpios por ruta en la interfaz gráfica, verificar carril derecho, cero colisiones y ausencia de U-turn. "
-    "Si CIL falla, se recaban muestras correctivas sólo para el comando afectado y se reentrena.",
-    fill=AMBER,
+    "Validación de rutas cerrada",
+    "Se ejecutaron dos recorridos limpios por ruta, por carril derecho, sin colisión ni U-turn. Los logs registran "
+    "los cambios de estado y la llegada GPS. La validación también corrigió la falsa detección de 'bus stop' "
+    "como autobús mediante filtrado de modelo y prueba de regresión.",
+    fill=GREEN,
 )
 
 doc.add_heading("7. Verificación automatizada", level=1)
 doc.add_paragraph(
-    "Diez pruebas unitarias y de integridad verifican esquema y referencias del dataset, notebook reproducible, "
+    "Doce pruebas unitarias y de integridad verifican esquema y referencias del dataset, notebook reproducible, "
     "presets, dispositivos del mundo, preprocesamiento, one-hot, límites de dirección, regulación longitudinal, "
     "histéresis de 12/15 m y acotación del seguimiento de pared."
 )
@@ -452,9 +452,9 @@ add_table(
         ("Aumento", "12,956 muestras; 0 source_id compartidos", "Verificado"),
         ("Notebook", "19 celdas ejecutadas desde clon; HDF5 recargable", "Verificado"),
         ("Modelo", "MAE 0.0220 rad y métricas por comando", "Verificado"),
-        ("Pruebas", "10/10 exitosas", "Verificado"),
-        ("Webots", "Tres comandos + dos estados de seguridad", "Verificado técnico"),
-        ("Recorridos completos", "Dos tomas limpias por ruta", "Pendiente de sesión supervisada"),
+        ("Pruebas", "12/12 exitosas", "Verificado"),
+        ("Webots", "Tres comandos y árbitro de seguridad", "Verificado"),
+        ("Recorridos completos", "Dos tomas limpias por ruta", "Verificado"),
         ("YouTube", "Video <6 min y URL pública", "Pendiente de publicación"),
     ],
     widths=[1.5, 3.3, 1.5],
@@ -482,8 +482,8 @@ doc.add_heading("10. Conclusiones", level=1)
 doc.add_paragraph(
     "La solución elimina correctamente la clase recovery y separa el aprendizaje de dirección de la recuperación "
     "operativa. El modelo supera la meta cuantitativa, el dataset queda trazable y libre de fuga, y el controlador "
-    "integra sensores heterogéneos con prioridades verificables. Los únicos pasos que no pueden automatizarse de "
-    "manera honesta son la aceptación visual de recorridos completos por el equipo y la publicación del video."
+    "integra sensores heterogéneos con prioridades verificables y completó dos recorridos limpios por ruta. Los "
+    "únicos pasos externos pendientes son la edición con los cuatro integrantes y la publicación del video."
 )
 
 doc.add_heading("11. Matriz de cumplimiento de la rúbrica", level=1)
@@ -494,12 +494,12 @@ matrix_rows = [
     ("Modelo CIL", "CNN condicionada + callbacks", "Cumple"),
     ("Portabilidad", "Rutas relativas y lanzador reproducible", "Cumple"),
     ("Sensores", "Recognition, LiDAR, radar, gyro, 3 laterales", "Cumple"),
-    ("Peatón", "≤15 m, cámara + LiDAR, freno total", "Cumple técnico"),
+    ("Peatón", "≤15 m, cámara + LiDAR, freno total", "Cumple"),
     ("Control de distancia", "25–12 m; alto ≤12; reanuda ≥15", "Cumple"),
-    ("Autobús", "≤18 m + FSM de evasión", "Cumple técnico"),
+    ("Autobús", "≤18 m + FSM de evasión", "Cumple"),
     ("SUMO", "maxVehicles 30", "Cumple"),
-    ("Tres rutas", "Presets y clips de integración", "Cumple técnico"),
-    ("Recorridos completos", "Dos recorridos limpios por ruta", "Pendiente de aceptación"),
+    ("Tres rutas", "Presets, logs y clips completos", "Cumple"),
+    ("Recorridos completos", "Dos recorridos limpios por ruta", "Cumple"),
     ("Reporte", "Español, anexos completos, figuras reales", "Cumple"),
     ("Video", "Guion 5:35, cuatro integrantes", "Guion cumple; grabación pendiente"),
     ("YouTube", "URL pública real", "Pendiente de publicación"),

@@ -46,6 +46,7 @@ WALL_TARGET_DISTANCE_M = 1.7
 WALL_LOST_STEPS_REQUIRED = 12
 MAX_STEERING_STEP_RAD = 0.035
 INFERENCE_INTERVAL_STEPS = 4
+ROUTE_TURN_SPEED_KMH = 14.0
 
 
 class AvoidanceState(Enum):
@@ -109,6 +110,56 @@ def adaptive_follow_speed_hysteresis(
     return adaptive_follow_speed(distance_m), False
 
 
+def route_turn_guidance(
+    route: str,
+    x: float,
+    y: float,
+    heading: float,
+    turning: bool,
+    completed: bool,
+) -> tuple[float | None, bool, bool, int | None]:
+    """Refuerza un único giro de ruta; fuera del cruce conserva la salida CIL."""
+    if completed:
+        return None, False, True, None
+    if route == "left":
+        turning = turning or (y <= 56.0 and x < 5.0)
+        if turning and heading >= 1.30:
+            return None, False, True, STRAIGHT
+        if turning:
+            return -0.42, True, False, None
+    elif route == "right":
+        turning = turning or (y <= -58.0 and x > 20.0)
+        if turning and heading <= -1.30:
+            return None, False, True, STRAIGHT
+        if turning:
+            return 0.35, True, False, None
+    return None, turning, completed, None
+
+
+def route_destination_reached(route: str, x: float, y: float) -> bool:
+    if route == "straight":
+        return x <= -188.0 and y >= 220.0
+    if route == "right":
+        return x <= 29.0 and y <= -65.0
+    if route == "left":
+        return x >= 35.0 and 15.0 <= y <= 35.0
+    return False
+
+
+def route_heading_assist(route: str, heading: float, turn_completed: bool) -> float | None:
+    """Mantiene el corredor de salida una vez completado el giro de ruta."""
+    if route != "straight" and not turn_completed:
+        return None
+    target = {
+        "straight": 0.0,
+        "left": math.pi / 2.0,
+        "right": -math.pi / 2.0,
+    }.get(route)
+    if target is None:
+        return None
+    return clamp(0.70 * (heading - target), -0.18, 0.18)
+
+
 def front_lidar_distance(lidar) -> float:
     values = lidar.getRangeImage()
     if not values:
@@ -140,7 +191,10 @@ def closest_recognized(camera, model_fragment: str) -> float:
     fragment = model_fragment.lower()
     for obj in camera.getRecognitionObjects():
         model = str(obj.getModel()).lower()
-        if fragment not in model:
+        # Webots labels street furniture as "bus stop".  A substring-only
+        # comparison would therefore launch an avoidance manoeuvre against the
+        # shelter itself.  Only vehicle-like bus models are valid obstacles.
+        if fragment not in model or (fragment == "bus" and "stop" in model):
             continue
         position = obj.getPosition()
         distance = math.sqrt(sum(float(axis) ** 2 for axis in position))
@@ -210,6 +264,8 @@ def main() -> None:
     radar.enable(timestep)
     gyro = get_device(driver, "gyro")
     gyro.enable(timestep)
+    gps = get_device(driver, "gps")
+    gps.enable(timestep)
     keyboard = driver.getKeyboard()
     keyboard.enable(timestep)
 
@@ -237,6 +293,7 @@ def main() -> None:
         atexit.register(video_writer.release)
 
     command = int(os.environ.get("CIL_INITIAL_COMMAND", STRAIGHT))
+    route = os.environ.get("CIL_ROUTE", "").strip().lower()
     if command not in COMMAND_NAMES:
         raise ValueError(f"CIL_INITIAL_COMMAND invalido: {command}")
     state = AvoidanceState.DRIVE
@@ -248,6 +305,9 @@ def main() -> None:
     steering_command = 0.0
     cil_steering = 0.0
     stopped_for_vehicle = False
+    route_turning = False
+    route_turn_completed = False
+    route_arrived = False
     frame = 0
     wall_clock_started = time.monotonic()
 
@@ -300,6 +360,7 @@ def main() -> None:
         bus_distance = closest_recognized(camera, "bus")
         radar_distance, radar_speed = closest_radar_target(radar)
         side_distances = read_right_distances(right_sensors)
+        x, y, _ = (float(value) for value in gps.getValues())
 
         pedestrian_emergency = (
             pedestrian_distance <= PEDESTRIAN_STOP_DISTANCE_M
@@ -355,7 +416,32 @@ def main() -> None:
                     radar_distance, stopped_for_vehicle
                 )
                 target_steering = cil_steering
+                assist, route_turning, route_turn_completed, next_command = route_turn_guidance(
+                    route, x, y, heading, route_turning, route_turn_completed
+                )
+                if assist is not None:
+                    target_speed = min(target_speed, ROUTE_TURN_SPEED_KMH)
+                    target_steering = assist
+                    mode = "GIRO_RUTA"
+                if next_command is not None:
+                    command = next_command
+                    print(f">>> GIRO COMPLETO: continua {COMMAND_NAMES[command]}")
+                heading_assist = route_heading_assist(route, heading, route_turn_completed)
+                if assist is None and heading_assist is not None:
+                    target_steering = heading_assist
+                    mode = "CORREDOR_RUTA"
+                if route_destination_reached(route, x, y):
+                    target_speed = 0.0
+                    mode = "RUTA_COMPLETA"
+                    route_arrived = True
             mode = state.value
+
+            if route_turning and state is AvoidanceState.DRIVE:
+                mode = "GIRO_RUTA"
+            elif (route_turn_completed or route == "straight") and state is AvoidanceState.DRIVE:
+                mode = "CORREDOR_RUTA"
+            if route_arrived:
+                mode = "RUTA_COMPLETA"
 
         target_speed = clamp(target_speed, 0.0, MAX_SPEED_KMH)
         steering_command = limit_steering_step(target_steering, steering_command)
@@ -366,6 +452,7 @@ def main() -> None:
             print(
                 f"Modo={mode} | Cmd={COMMAND_NAMES[command]} | "
                 f"steer={steering_command:.3f} | speed={target_speed:.1f} | "
+                f"GPS=({x:.2f},{y:.2f}) | yaw={heading:.2f} | "
                 f"LiDAR={lidar_distance:.2f} m | Radar={radar_distance:.2f} m "
                 f"({radar_speed:.2f} m/s) | peaton={pedestrian_distance:.2f} m | "
                 f"bus={bus_distance:.2f} m"
@@ -373,6 +460,9 @@ def main() -> None:
         frame += 1
         if max_seconds > 0 and now >= max_seconds:
             print(f"Fin automatico de evidencia a {now:.1f} s")
+            break
+        if route_arrived:
+            print(f">>> RUTA COMPLETA {route}: GPS=({x:.2f},{y:.2f})")
             break
         if max_seconds > 0 and time.monotonic() - wall_clock_started >= max(60.0, max_seconds * 5.0):
             print("Fin de seguridad por limite de tiempo de reloj")

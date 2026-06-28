@@ -44,11 +44,11 @@ de los cuatro integrantes. El guion se encuentra en `docs/Guion_Video_Equipo19.m
 - 6,129 muestras originales, sin imagenes faltantes ni referencias huerfanas.
 - 12,956 muestras tras aumento; la separacion por `source_id` evita fuga.
 - MAE de validacion global: `0.0220 rad` (objetivo: `<= 0.05 rad`).
-- Diez pruebas automatizadas cubren integridad, one-hot, preprocesamiento,
+- Doce pruebas automatizadas cubren integridad, one-hot, preprocesamiento,
   limites de direccion, umbrales de distancia, histéresis y presets.
-- Webots R2025a + SUMO 1.27.1: pruebas tecnicas de los tres comandos,
-  frenado ante peaton y activacion de evasion de autobus documentadas en
+- Webots R2025a + SUMO 1.27.1: dos recorridos limpios por ruta, frenado ante
+  peaton, control de distancia y evasion completa documentados en
   `docs/Validacion_Webots.md`.
 
-La aceptacion final de recorridos completos y el enlace de YouTube requieren
-la toma supervisada del equipo; no se incluye una URL ficticia.
+Sólo quedan la edición con participación de los cuatro integrantes y el enlace
+de YouTube; no se incluye una URL ficticia.

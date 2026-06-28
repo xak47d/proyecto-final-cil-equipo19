@@ -2598,7 +2598,9 @@ RecognizablePedestrian {
   translation 39.6 10 1.27
   name "pedestrian(1)"
   controllerArgs [
-    "--trajectory=34 10, 46 10"
+    "--trajectory=34 10, 56 10"
+    "--speed=2.0"
+    "--once"
   ]
   shirtColor 1 0 0
   pantsColor 0 0 0

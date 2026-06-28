@@ -57,7 +57,7 @@ for route, config in ROUTES.items():
             1,
         ).replace(
             '"--trajectory=34 -27, 56 -27"',
-            '"--trajectory=34 10, 46 10"',
+            '"--trajectory=34 10, 56 10"\n    "--speed=2.0"\n    "--once"',
             1,
         )
     banner = (

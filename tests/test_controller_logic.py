@@ -19,6 +19,36 @@ spec.loader.exec_module(controller)
 
 
 class ControllerLogicTests(unittest.TestCase):
+    def test_bus_recognition_excludes_bus_stop_street_furniture(self):
+        class RecognitionObject:
+            def __init__(self, model, distance):
+                self.model = model
+                self.distance = distance
+
+            def getModel(self):
+                return self.model
+
+            def getPosition(self):
+                return (self.distance, 0.0, 0.0)
+
+            def getPositionOnImage(self):
+                return (10, 10)
+
+        class Camera:
+            def getRecognitionObjects(self):
+                return [
+                    RecognitionObject("bus stop", 2.0),
+                    RecognitionObject("BusSimple", 14.0),
+                ]
+
+            def getWidth(self):
+                return 100
+
+            def getHeight(self):
+                return 100
+
+        self.assertEqual(controller.closest_recognized(Camera(), "bus"), 14.0)
+
     def test_commands_are_three_valid_one_hot_vectors(self):
         for command in (0, 1, 2):
             encoded = controller.command_to_one_hot(command)
@@ -72,6 +102,29 @@ class ControllerLogicTests(unittest.TestCase):
         )
         self.assertTrue(math.isfinite(steering))
         self.assertLessEqual(abs(steering), 0.42)
+
+    def test_route_turn_guidance_and_destinations(self):
+        assist, turning, completed, next_command = controller.route_turn_guidance(
+            "left", -20.0, 50.0, 0.4, False, False
+        )
+        self.assertEqual(assist, -0.42)
+        self.assertTrue(turning)
+        self.assertFalse(completed)
+        self.assertIsNone(next_command)
+        assist, turning, completed, next_command = controller.route_turn_guidance(
+            "left", -18.0, 51.0, 1.31, True, False
+        )
+        self.assertIsNone(assist)
+        self.assertFalse(turning)
+        self.assertTrue(completed)
+        self.assertEqual(next_command, controller.STRAIGHT)
+        self.assertTrue(controller.route_destination_reached("left", 39.6, 25.0))
+        self.assertTrue(controller.route_destination_reached("right", 28.0, -68.0))
+        self.assertTrue(controller.route_destination_reached("straight", -190.0, 236.0))
+        self.assertIsNone(controller.route_heading_assist("right", -1.0, False))
+        self.assertGreater(controller.route_heading_assist("straight", 0.2, False), 0.0)
+        self.assertGreater(controller.route_heading_assist("right", -1.0, True), 0.0)
+        self.assertLess(controller.route_heading_assist("left", 1.0, True), 0.0)
 
 
 if __name__ == "__main__":

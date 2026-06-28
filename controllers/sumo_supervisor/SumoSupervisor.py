@@ -515,8 +515,14 @@ class SumoSupervisor (Supervisor):
                 self.sumoDisplay = SumoDisplay(display, displayZoom, view, directory, displayRefreshRate, displayFitSize,
                                                self.traci)
 
-        # Main simulation loop
-        while self.step(step) >= 0:
+        # Main simulation loop. In unattended evidence runs macOS/Webots can
+        # switch the GUI to pause; reassert FAST before requesting each step.
+        force_fast = os.environ.get('WEBOTS_FORCE_FAST') == '1'
+        while True:
+            if force_fast:
+                self.simulationSetMode(self.SIMULATION_MODE_FAST)
+            if self.step(step) < 0:
+                break
             if self.usePlugin:
                 sumoSupervisorPlugin.run(step)
 

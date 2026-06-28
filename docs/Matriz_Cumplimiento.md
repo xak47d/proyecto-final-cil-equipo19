@@ -8,11 +8,11 @@
 | Tres comandos | STRAIGHT, LEFT y RIGHT | Completo |
 | Notebook inicia con clone de GitHub | Primera celda de codigo | Completo |
 | Division sin fuga | `source_id` disjunto antes de aumento | Completo |
-| Modelo exportado y usado en World 2 | `cil_model.h5` y metadatos | En validacion |
-| Tres rutas con origen/destino | Tres presets World 2 | En validacion |
-| Evasion de obstaculo | Recognition + LiDAR + pared derecha | En validacion |
-| Peaton y freno de emergencia | Recognition + LiDAR, umbral 15 m | En validacion |
-| Distancia a vehiculo | Radar, parada 12 m, reanudacion 15 m | En validacion |
+| Modelo exportado y usado en World 2 | `cil_model.h5` y metadatos | Completo |
+| Tres rutas con origen/destino | Tres presets y dos recorridos limpios por ruta | Completo |
+| Evasion de obstaculo | Recognition + LiDAR + pared derecha | Completo |
+| Peaton y freno de emergencia | Recognition + LiDAR, umbral 15 m | Completo |
+| Distancia a vehiculo | Radar, parada 12 m, reanudacion 15 m | Completo |
 | SUMO >=30 vehiculos | `maxVehicles 30` | Completo |
 | Video <6 min y participa todo el equipo | Guion 5:35 y clips tecnicos | Pendiente de grabacion del equipo |
 | Enlace de YouTube en reporte | Se inserta despues de publicar | Pendiente del equipo |

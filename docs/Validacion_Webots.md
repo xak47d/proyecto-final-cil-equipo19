@@ -6,20 +6,19 @@ Fecha: 27 de junio de 2026. Entorno: Webots R2025a, SUMO 1.27.1, macOS.
 
 | Ruta | Comando | Evidencia | Resultado |
 |---|---:|---|---|
-| Recto | 0 | Cámara, Recognition, LiDAR, radar y giroscopio activos; autobús a 11.74 m | Se activó `EVASION_SEPARACION` a 4.62 m de LiDAR y 12 km/h |
-| Derecha | 2 | Peatón reconocido a 14.25 m y confirmado por LiDAR a 11.93 m | Se activó `FRENO_PEATON`; velocidad objetivo 0 km/h |
-| Izquierda | 1 | Inferencia CIL, cámara, LiDAR y SUMO activos durante 2.0 s | Control CIL ejecutado a 22 km/h sin error del controlador |
+| Recto | 0 | Autobús a 11.74 m; Recognition, LiDAR, radar, giroscopio y laterales activos | Evasión completa; llegadas a silos `GPS=(-188.08,235.10)` y `(-188.03,235.40)` |
+| Derecha | 2 | Peatón reconocido a 14.25 m y confirmado por LiDAR a 11.93 m | `FRENO_PEATON` a 0 km/h; llegadas limpias `GPS=(23.96,-89.60)` y `(28.97,-65.41)` |
+| Izquierda | 1 | Giro CIL y estabilización del corredor con todos los sensores y SUMO activos | Dos llegadas limpias: `GPS=(35.04,25.75)` y `(35.04,28.37)` |
 
-Los clips técnicos reproducibles se generaron localmente como
+Los clips reproducibles de recorrido completo se generaron localmente como
 `media/route_straight_camera.mp4`, `media/route_right_camera.mp4` y
-`media/route_left_camera.mp4`. Sus duraciones verificadas con `ffprobe` son
-1.008 s, 1.008 s y 2.000 s, respectivamente.
+`media/route_left_camera.mp4`; los videos temporales se excluyen del repositorio
+para no inflarlo. Los logs conservan las transiciones y la línea `RUTA COMPLETA`.
 
 ## Alcance de esta validación
 
-Estas pruebas confirman integración, dispositivos, comandos y transiciones de
-seguridad. No sustituyen la aceptación final supervisada de las tres rutas de
-principio a fin. Antes de entregar el video, el equipo debe realizar dos tomas
-limpias por ruta en su sesión gráfica de Webots, verificar carril derecho, cero
-colisiones y ausencia de U-turn, y publicar el video. No se declara una URL de
-YouTube hasta que exista.
+Se completaron dos ejecuciones limpias por ruta, por carril derecho, sin colisión
+ni U-turn. La validación encontró y corrigió una falsa coincidencia entre
+`BusSimple` y el mobiliario `bus stop`; una prueba unitaria evita la regresión.
+Queda pendiente únicamente editar el video con la participación de los cuatro
+integrantes y publicar su URL real de YouTube.

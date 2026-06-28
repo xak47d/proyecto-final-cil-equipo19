@@ -84,12 +84,18 @@ PY
 
 PORT="${WEBOTS_PORT:-$(pick_free_port)}"
 MODE="realtime"
-[[ $FAST -eq 1 ]] && MODE="fast"
+WEBOTS_EXTRA=()
+if [[ $FAST -eq 1 ]]; then
+  MODE="fast"
+  WEBOTS_EXTRA+=(--no-rendering)
+  export WEBOTS_FORCE_FAST=1
+fi
 
 export PYTHONPATH="$WEBOTS_HOME/Contents/lib/controller/python"
 export WEBOTS_PYTHON_EXECUTABLE="$VENV/bin/python"
 export WEBOTS_CONTROLLER_URL="tcp://localhost:${PORT}/vehicle"
 export CIL_INITIAL_COMMAND="$INITIAL_COMMAND"
+export CIL_ROUTE="$ROUTE"
 
 mkdir -p "$ROOT/media"
 LOG="$ROOT/media/route_${ROUTE}.log"
@@ -107,7 +113,7 @@ if command -v caffeinate >/dev/null 2>&1; then
   CAFFEINATE_PID=$!
 fi
 "$WEBOTS_HOME/Contents/MacOS/webots" \
-  --batch --port="$PORT" --mode="$MODE" --stdout --stderr "$WORLD" &
+  --batch "${WEBOTS_EXTRA[@]}" --port="$PORT" --mode="$MODE" --stdout --stderr "$WORLD" &
 WEBOTS_PID=$!
 
 cleanup() {

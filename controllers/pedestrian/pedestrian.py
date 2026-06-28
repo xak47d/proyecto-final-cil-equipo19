@@ -64,6 +64,8 @@ class Pedestrian (Supervisor):
         opt_parser.add_option("--trajectory", default="", help="Specify the trajectory in the format [x1 y1, x2 y2, ...]")
         opt_parser.add_option("--speed", type=float, default=0.5, help="Specify walking speed in [m/s]")
         opt_parser.add_option("--step", type=int, help="Specify time step (otherwise world time step is used)")
+        opt_parser.add_option("--once", action="store_true", default=False,
+                              help="Stop at the final waypoint instead of looping")
         options, args = opt_parser.parse_args()
         if not options.trajectory or len(options.trajectory.split(',')) < 2:
             print("You should specify the trajectory using the '--trajectory' option.")
@@ -117,6 +119,12 @@ class Pedestrian (Supervisor):
 
             # move everything
             distance = time * self.speed
+            if options.once and distance >= self.waypoints_distance[0]:
+                root_translation = [
+                    self.waypoints[1][0], self.waypoints[1][1], self.ROOT_HEIGHT
+                ]
+                self.root_translation_field.setSFVec3f(root_translation)
+                continue
             relative_distance = distance - int(distance / self.waypoints_distance[self.number_of_waypoints - 1]) * \
                 self.waypoints_distance[self.number_of_waypoints - 1]
 
