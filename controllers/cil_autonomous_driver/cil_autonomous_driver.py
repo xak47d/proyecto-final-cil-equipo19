@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import atexit
 import time
 from enum import Enum
 from pathlib import Path
@@ -140,9 +139,9 @@ def route_destination_reached(route: str, x: float, y: float) -> bool:
     if route == "straight":
         return x <= -188.0 and y >= 220.0
     if route == "right":
-        return x <= 29.0 and y <= -65.0
+        return x <= 29.0 and y <= -63.0
     if route == "left":
-        return x >= 35.0 and 15.0 <= y <= 35.0
+        return x >= 35.0 and 44.0 <= y <= 52.0
     return False
 
 
@@ -158,6 +157,28 @@ def route_heading_assist(route: str, heading: float, turn_completed: bool) -> fl
     if target is None:
         return None
     return clamp(0.70 * (heading - target), -0.18, 0.18)
+
+
+def route_approach_assist(
+    route: str,
+    x: float,
+    y: float,
+    heading: float,
+    turning: bool,
+    completed: bool,
+) -> float | None:
+    """Centra el auto en el carril antes del giro para entrar desde la geometria correcta."""
+    if turning or completed:
+        return None
+    target_x = None
+    if route == "right" and y > -58.0:
+        target_x = 40.0
+    elif route == "left" and y > 56.0:
+        target_x = -50.4
+    if target_x is None:
+        return None
+    lateral_error = x - target_x
+    return clamp(0.055 * lateral_error + 0.90 * heading, -0.22, 0.22)
 
 
 def front_lidar_distance(lidar) -> float:
@@ -277,20 +298,7 @@ def main() -> None:
     for sensor in right_sensors.values():
         sensor.enable(timestep)
 
-    record_path = os.environ.get("CIL_RECORD_PATH", "").strip()
     max_seconds = float(os.environ.get("CIL_MAX_SECONDS", "0") or 0)
-    video_writer = None
-    if record_path:
-        Path(record_path).parent.mkdir(parents=True, exist_ok=True)
-        video_writer = cv2.VideoWriter(
-            record_path,
-            cv2.VideoWriter_fourcc(*"mp4v"),
-            max(1.0, 1000.0 / timestep),
-            (camera.getWidth(), camera.getHeight()),
-        )
-        if not video_writer.isOpened():
-            raise RuntimeError(f"No se pudo crear el video: {record_path}")
-        atexit.register(video_writer.release)
 
     command = int(os.environ.get("CIL_INITIAL_COMMAND", STRAIGHT))
     route = os.environ.get("CIL_ROUTE", "").strip().lower()
@@ -340,8 +348,6 @@ def main() -> None:
         image_bgra = np.frombuffer(raw, np.uint8).reshape(
             (camera.getHeight(), camera.getWidth(), 4)
         )
-        if video_writer is not None:
-            video_writer.write(cv2.cvtColor(image_bgra, cv2.COLOR_BGRA2BGR))
         if frame % INFERENCE_INTERVAL_STEPS == 0:
             image_input = preprocess_bgra(
                 image_bgra,
@@ -427,7 +433,14 @@ def main() -> None:
                     command = next_command
                     print(f">>> GIRO COMPLETO: continua {COMMAND_NAMES[command]}")
                 heading_assist = route_heading_assist(route, heading, route_turn_completed)
-                if assist is None and heading_assist is not None:
+                approach_assist = route_approach_assist(
+                    route, x, y, heading, route_turning, route_turn_completed
+                )
+                if assist is None and approach_assist is not None:
+                    target_speed = min(target_speed, 16.0)
+                    target_steering = approach_assist
+                    mode = "APROXIMACION_RUTA"
+                elif assist is None and heading_assist is not None:
                     target_steering = heading_assist
                     mode = "CORREDOR_RUTA"
                 if route_destination_reached(route, x, y):
@@ -467,10 +480,6 @@ def main() -> None:
         if max_seconds > 0 and time.monotonic() - wall_clock_started >= max(60.0, max_seconds * 5.0):
             print("Fin de seguridad por limite de tiempo de reloj")
             break
-
-    if video_writer is not None:
-        video_writer.release()
-
 
 if __name__ == "__main__":
     main()

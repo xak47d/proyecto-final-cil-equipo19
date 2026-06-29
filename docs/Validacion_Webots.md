@@ -7,13 +7,14 @@ de 2026. Entorno: Webots R2025a, SUMO 1.27.1, macOS.
 
 | Ruta | Comando | Evidencia | Resultado |
 |---|---:|---|---|
-| Recto | 0 | Autobús a 11.74 m; Recognition, LiDAR, radar, giroscopio y laterales activos | Evasión completa; llegadas a silos `GPS=(-188.08,235.10)` y `(-188.03,235.40)` |
-| Derecha | 2 | Peatón reconocido a 14.25 m y confirmado por LiDAR a 11.93 m | `FRENO_PEATON` a 0 km/h; llegadas limpias `GPS=(23.96,-89.60)` y `(28.97,-65.41)` |
-| Izquierda | 1 | Giro CIL y estabilización del corredor con todos los sensores y SUMO activos | Dos llegadas limpias: `GPS=(35.04,25.75)` y `(35.04,28.37)` |
+| Recto | 0 | Autobús a 11.74 m; Recognition, LiDAR, radar, giroscopio y laterales activos | Evasión completa y llegada a silos `GPS=(-188.01,235.51)` |
+| Derecha | 2 | Peatón reconocido y confirmado por LiDAR dentro del umbral de 15 m | `FRENO_PEATON` a 0 km/h; aproximación centrada, giro contenido y llegada `GPS=(28.99,-67.09)` |
+| Izquierda | 1 | Aproximación centrada, giro asistido y estabilización del corredor | Giro dentro de la intersección y llegada `GPS=(35.01,47.85)` |
 
 Los clips reproducibles de recorrido completo se generaron localmente como
-`media/route_straight_camera.mp4`, `media/route_right_camera.mp4` y
-`media/route_left_camera.mp4`. Las copias listas para entrega se guardaron como
+`media/route_straight_global_1080p.mp4`,
+`media/route_right_global_1080p.mp4` y
+`media/route_left_global_1080p.mp4`. Las copias listas para entrega se guardaron como
 `media/entrega/Equipo19_Ruta_Recta.mp4`,
 `media/entrega/Equipo19_Ruta_Derecha.mp4` y
 `media/entrega/Equipo19_Ruta_Izquierda.mp4`. Los videos se excluyen del
@@ -24,28 +25,32 @@ repositorio para no inflarlo; los logs conservan las transiciones y la línea
 
 | Ruta | Archivo de entrega | Duración | Evidencia del recorrido | Resultado |
 |---|---|---:|---|---|
-| Recta | `Equipo19_Ruta_Recta.mp4` | 46.656 s | Evasión del autobús, seguimiento de pared, recuperación, reincorporación, tráfico y llegada | Cumple |
-| Derecha | `Equipo19_Ruta_Derecha.mp4` | 31.824 s | Freno ante peatón, reanudación, giro derecho y llegada | Cumple |
-| Izquierda | `Equipo19_Ruta_Izquierda.mp4` | 27.056 s | Giro izquierdo, estabilización en el corredor y llegada | Cumple |
+| Recta | `Equipo19_Ruta_Recta.mp4` | 45.033 s | Evasión del autobús, seguimiento de pared, recuperación, reincorporación, tráfico y llegada | Cumple |
+| Derecha | `Equipo19_Ruta_Derecha.mp4` | 32.567 s | Freno ante peatón, reanudación, aproximación centrada, giro derecho y llegada | Cumple |
+| Izquierda | `Equipo19_Ruta_Izquierda.mp4` | 30.967 s | Aproximación centrada, giro izquierdo, corredor estable y llegada | Cumple |
 
-Los tres MP4 son MPEG-4 de 320 x 160 px a 62.5 fps. `ffmpeg` decodificó cada
-archivo completo sin errores. Se inspeccionó visualmente un cuadro por segundo,
-además del inicio y el final en QuickTime Player: no se observan colisiones,
-salida del recorrido ni U-turn. La duración acumulada es 1:45.536, por debajo
-del máximo de seis minutos para la posterior edición del video final.
+Los tres MP4 usan H.264, resolución nativa de 1920 x 1080 px y 30 fps.
+Una cámara de evidencia independiente sigue la posición del vehículo en ejes
+globales, sin rotar con las correcciones de dirección. El encuadre se validó
+mediante hojas de contacto de cada recorrido: el vehículo permanece visible y
+se conserva contexto de carriles, peatones y tráfico. `ffmpeg` decodificó cada
+archivo completo sin errores. No se observan colisiones, salida del recorrido
+ni U-turn. La duración acumulada es 1:48.567, por debajo del máximo de seis
+minutos para la posterior edición del video final.
 
 SHA-256 de las copias de entrega:
 
-- Recta: `c4d69405009dc3c27d530daccfc3f70f94a0ab3a85fd09c95ea6c958e7163bb5`.
-- Derecha: `185c613b22f81e3925c125b09e7d11acde86b692c25331d95cc92d6dad9141cd`.
-- Izquierda: `006ae8e1d8da82db61fe03cd1c1e19c6c96c7b0aaf6d0780a20e9ad11da5642e`.
+- Recta: `38e8b70d03f4eccc29e6eb35a92e7971898d4d42cfddfc4f39a45af1da37ecec`.
+- Derecha: `eb6241da46236d3420b5b184bf0b6329becb20b84e2e86fd1ac73a256be0ded1`.
+- Izquierda: `ddfa91a27677af6be70e8e4f7974c4d900f4fa94ed1b239cee75b00439edf0b2`.
 
 ## Alcance de esta validación
 
-Se completaron dos ejecuciones limpias por ruta, por carril derecho, sin colisión
-ni U-turn. La validación encontró y corrigió una falsa coincidencia entre
-`BusSimple` y el mobiliario `bus stop`; una prueba unitaria evita la regresión.
-Las doce pruebas automatizadas volvieron a pasar y los tres mundos conservan
+Las ejecuciones finales terminaron con `RUTA COMPLETA`, por carril derecho, sin
+colisión ni U-turn. La revalidación corrigió la deriva previa al cruce mediante
+centrado de carril, afinó los destinos reales y eliminó la rotación absurda de
+la cámara global. También conserva la corrección que distingue `BusSimple` del
+mobiliario `bus stop`. Las doce pruebas automatizadas volvieron a pasar y los tres mundos conservan
 `maxVehicles 30`, Camera Recognition, LiDAR, radar, giroscopio y los tres
 sensores laterales. Queda pendiente únicamente editar el video con la
 participación de los cuatro integrantes y publicar su URL real de YouTube.

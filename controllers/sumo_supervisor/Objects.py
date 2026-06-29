@@ -19,14 +19,15 @@ import random
 
 hiddenPosition = 10000
 
+# Keep traffic self-contained: the R2023b Sprinter requests uncached meshes at
+# runtime and can pause a validation run behind Webots' asset-download dialog.
 CAR_MODEL = [
     'BmwX5Simple',
     'CitroenCZeroSimple',
     'ToyotaPriusSimple',
     'LincolnMKZSimple',
     'RangeRoverSportSVRSimple',
-    'TeslaModel3Simple',
-    'MercedesBenzSprinterSimple'
+    'TeslaModel3Simple'
 ]
 
 BUS_MODEL = ['BusSimple']

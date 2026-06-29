@@ -29,6 +29,9 @@ y validacion, y exporta `cil_model.h5` y `model_metadata.json`.
 ```
 
 Teclas durante la simulacion: `W` recto, `A` izquierda y `D` derecha.
+Agrega `--record` para generar un MP4 H.264 de 1920 x 1080 px a 30 fps. La
+camara global mantiene el vehiculo en cuadro sin rotar con cada correccion de
+direccion; `ffmpeg` se usa para la codificacion final.
 
 ## Rutas de evidencia
 

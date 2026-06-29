@@ -99,8 +99,15 @@ export CIL_ROUTE="$ROUTE"
 
 mkdir -p "$ROOT/media"
 LOG="$ROOT/media/route_${ROUTE}.log"
+FRAMES_DIR=""
+VIDEO_PATH=""
 if [[ $RECORD -eq 1 ]]; then
-  export CIL_RECORD_PATH="$ROOT/media/route_${ROUTE}_camera.mp4"
+  command -v ffmpeg >/dev/null || { echo "Se requiere ffmpeg para codificar el video"; exit 1; }
+  FRAMES_DIR="$ROOT/media/.frames_${ROUTE}_1080p"
+  VIDEO_PATH="$ROOT/media/route_${ROUTE}_global_1080p.mp4"
+  rm -rf "$FRAMES_DIR"
+  mkdir -p "$FRAMES_DIR"
+  export CIL_RECORD_FRAMES_DIR="$FRAMES_DIR"
   export CIL_MAX_SECONDS="${CIL_MAX_SECONDS:-90}"
 fi
 
@@ -117,7 +124,7 @@ fi
 WEBOTS_PID=$!
 
 cleanup() {
-  if kill -0 "$WEBOTS_PID" 2>/dev/null; then
+  if [[ -n "${WEBOTS_PID:-}" ]] && kill -0 "$WEBOTS_PID" 2>/dev/null; then
     kill "$WEBOTS_PID" 2>/dev/null || true
   fi
   if [[ -n "$CAFFEINATE_PID" ]] && kill -0 "$CAFFEINATE_PID" 2>/dev/null; then
@@ -128,4 +135,25 @@ trap cleanup EXIT INT TERM
 
 sleep 5
 cd "$(dirname "$CONTROLLER")"
-"$VENV/bin/python" -u "$CONTROLLER" 2>&1 | tee "$LOG"
+CONTROLLER_STATUS=0
+"$VENV/bin/python" -u "$CONTROLLER" 2>&1 | tee "$LOG" || CONTROLLER_STATUS=$?
+
+if [[ $RECORD -eq 1 ]]; then
+  if kill -0 "$WEBOTS_PID" 2>/dev/null; then
+    kill "$WEBOTS_PID" 2>/dev/null || true
+    wait "$WEBOTS_PID" 2>/dev/null || true
+  fi
+  WEBOTS_PID=""
+  FRAME_COUNT="$(find "$FRAMES_DIR" -name 'frame_*.jpg' -type f | wc -l | tr -d ' ')"
+  if [[ "$FRAME_COUNT" -lt 2 ]]; then
+    echo "No se capturaron suficientes cuadros Full HD"
+    exit 1
+  fi
+  ffmpeg -y -v error -framerate 62.5 -i "$FRAMES_DIR/frame_%06d.jpg" \
+    -vf fps=30 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p \
+    -movflags +faststart "$VIDEO_PATH"
+  rm -rf "$FRAMES_DIR"
+  echo "Video global Full HD: $VIDEO_PATH"
+fi
+
+exit "$CONTROLLER_STATUS"

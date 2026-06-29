@@ -168,13 +168,32 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation -0.234441597284705 -0.2017590216418297 0.950962898670988 4.511789628844961
-  position -224.39294547247093 205.6186609469823 72.09517955679127
-  near 1
+  fieldOfView 0.8
+  orientation -0.2404644328450795 0.5805324950429454 0.7779195837203913 0.9785593071265875
+  position 15.6 1 24.4
+  near 0.2
   follow "vehicle"
-  followType "Mounted Shot"
+  followType "Tracking Shot"
+  followSmoothness 0
   lensFlare LensFlare {
   }
+}
+DEF EVIDENCE_CAMERA Robot {
+  translation 15.6 1 24.4
+  rotation -0.2404644328450795 0.5805324950429454 0.7779195837203913 0.9785593071265875
+  children [
+    Camera {
+      name "global_evidence_camera"
+      fieldOfView 0.8
+      width 1920
+      height 1080
+      near 0.2
+      far 250
+    }
+  ]
+  name "evidence camera"
+  controller "global_evidence_recorder"
+  supervisor TRUE
 }
 TexturedBackground {
 }
@@ -187,6 +206,7 @@ Fog {
 SumoInterface {
   gui FALSE
   maxVehicles 30
+  seed 1
 }
 DEF GROUND Solid {
   boundingObject DEF GROUND_PLANE Plane {
@@ -927,6 +947,7 @@ DEF WEBOTS_VEHICLE0 BmwX5 {
   translation 39.6 25 0.4
   rotation 0 0 1 -1.5708
   controller "<extern>"
+  supervisor TRUE
   sensorsSlotFront [
     SickLms291 {
       translation 0.06 0 0

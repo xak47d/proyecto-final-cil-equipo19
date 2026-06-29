@@ -118,13 +118,24 @@ class ControllerLogicTests(unittest.TestCase):
         self.assertFalse(turning)
         self.assertTrue(completed)
         self.assertEqual(next_command, controller.STRAIGHT)
-        self.assertTrue(controller.route_destination_reached("left", 39.6, 25.0))
+        self.assertTrue(controller.route_destination_reached("left", 39.6, 48.0))
         self.assertTrue(controller.route_destination_reached("right", 28.0, -68.0))
         self.assertTrue(controller.route_destination_reached("straight", -190.0, 236.0))
         self.assertIsNone(controller.route_heading_assist("right", -1.0, False))
         self.assertGreater(controller.route_heading_assist("straight", 0.2, False), 0.0)
         self.assertGreater(controller.route_heading_assist("right", -1.0, True), 0.0)
         self.assertLess(controller.route_heading_assist("left", 1.0, True), 0.0)
+        self.assertGreater(
+            controller.route_approach_assist("right", 44.0, -20.0, 0.1, False, False),
+            0.0,
+        )
+        self.assertLess(
+            controller.route_approach_assist("right", 36.0, -20.0, -0.1, False, False),
+            0.0,
+        )
+        self.assertIsNone(
+            controller.route_approach_assist("right", 40.0, -60.0, 0.0, True, False)
+        )
 
 
 if __name__ == "__main__":

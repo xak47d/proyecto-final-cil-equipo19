@@ -37,6 +37,12 @@ class ProjectIntegrityTests(unittest.TestCase):
             'name "ds_right_middle"',
             'name "ds_right_rear"',
             "RecognizablePedestrian",
+            "fieldOfView 1\n      width 320\n      height 160",
+            'followType "Tracking Shot"',
+            "followSmoothness 0",
+            "supervisor TRUE",
+            'name "global_evidence_camera"',
+            "width 1920\n      height 1080",
         ):
             self.assertIn(token, world)
 

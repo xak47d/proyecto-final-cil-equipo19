@@ -479,8 +479,8 @@ add_table(
 doc.add_heading("6. Presets de ruta y evidencia de Webots", level=1)
 doc.add_paragraph(
     "Los presets se regeneran mediante `tools/create_route_worlds.py` y comparten la misma red vial. Cada uno "
-    "fija pose inicial y comando, conservando rutas relativas. Las figuras provienen directamente de la cámara "
-    "del vehículo durante Webots R2025a."
+    "fija pose inicial y comando, conservando rutas relativas. Una cámara de evidencia independiente mantiene "
+    "el vehículo visible con encuadre global estable y genera video H.264 Full HD (1920 × 1080 px, 30 fps)."
 )
 add_figure(doc, FIG / "webots_straight.png", "Figura 4. Ruta recta: evidencia final de llegada al corredor de los silos.")
 add_figure(doc, FIG / "webots_right.png", "Figura 5. Ruta derecha: evidencia final tras freno ante peatón y giro.")
@@ -489,18 +489,18 @@ add_table(
     doc,
     ["Ruta", "Comando", "Resultado técnico observado"],
     [
-        ("Recto", 0, "Evasión completa; llegadas GPS=(-188.08,235.10) y (-188.03,235.40)"),
-        ("Derecha", 2, "Freno a peatón; llegadas GPS=(23.96,-89.60) y (28.97,-65.41)"),
-        ("Izquierda", 1, "Llegadas GPS=(35.04,25.75) y (35.04,28.37)"),
+        ("Recto", 0, "Evasión completa y llegada GPS=(-188.01,235.51)"),
+        ("Derecha", 2, "Freno a peatón, giro contenido y llegada GPS=(28.99,-67.09)"),
+        ("Izquierda", 1, "Giro contenido y llegada GPS=(35.01,47.85)"),
     ],
     widths=[1.2, 1.0, 4.1],
 )
 add_note(
     doc,
     "Validación de rutas cerrada",
-    "Se ejecutaron dos recorridos limpios por ruta, por carril derecho, sin colisión ni U-turn. Los logs registran "
-    "los cambios de estado y la llegada GPS. La validación también corrigió la falsa detección de 'bus stop' "
-    "como autobús mediante filtrado de modelo y prueba de regresión.",
+    "Las tomas finales completaron las tres rutas por carril derecho, sin colisión ni U-turn. Los logs registran "
+    "los cambios de estado y la llegada GPS; ffmpeg decodificó los tres clips sin errores. La revalidación corrigió "
+    "la deriva al entrar en la intersección y conserva el filtro que distingue 'bus stop' de un autobús real.",
     fill=GREEN,
 )
 
