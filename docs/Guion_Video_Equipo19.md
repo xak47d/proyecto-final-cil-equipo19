@@ -14,11 +14,17 @@ camara, LiDAR, radar y sensores de distancia.
 ## 0:35-1:35 - Dataset y red - Demenard Gardy Armand
 
 - Mostrar 6,129 imagenes originales y 12,956 muestras finales aumentadas.
-- Explicar que la division por `source_id` ocurre antes de reflejar imagenes;
-  por ello no hay fuga entre entrenamiento y validacion.
+- Explicar el aumento: reflejo horizontal con inversion del signo del angulo e
+  intercambio de comando IZQUIERDA<->DERECHA. La division por `source_id` ocurre
+  antes de aumentar, por lo que no hay fuga entre entrenamiento y validacion.
 - Mostrar la CNN: cinco convoluciones, comando one-hot, capas densas y salida
   del angulo de direccion.
-- Mostrar curvas de MSE/MAE y leer el MAE de validacion del reporte.
+- Indicar los parametros de entrenamiento: optimizador Adam (lr 1e-4), perdida
+  MSE y metrica MAE, 12 epocas, batch 32, callbacks EarlyStopping y
+  ReduceLROnPlateau (factor 0.5, paciencia 2), semilla 19 y entrada 160x80x3 con
+  recorte superior del 25 %.
+- Mostrar curvas de MSE/MAE y leer el MAE de validacion: global 0.022 rad
+  (STRAIGHT 0.015, LEFT 0.024, RIGHT 0.023; objetivo <= 0.05 rad).
 
 ## 1:35-2:40 - Ruta recta - Luis Daniel Castillo Alegria
 
@@ -26,8 +32,9 @@ camara, LiDAR, radar y sensores de distancia.
 - Mostrar `Cmd=STRAIGHT` en consola.
 - Indicar los umbrales de radar: regulacion desde 25 m, parada a 12 m y
   reanudacion a 15 m.
-- Mostrar deteccion del autobus a 18 m, cambio de estado de evasion,
-  seguimiento de pared derecha y reincorporacion al carril derecho.
+- Indicar que el umbral de evasion esta configurado a 18 m; en la corrida el
+  autobus se reconocio a ~11.7 m y se disparo el cambio de estado de evasion.
+- Mostrar el seguimiento de pared derecha y la reincorporacion al carril derecho.
 
 ## 2:40-3:40 - Ruta derecha y peaton - Raul Adrian Delgado Rodriguez
 
