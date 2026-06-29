@@ -32,8 +32,8 @@ camara, LiDAR, radar y sensores de distancia.
 - Mostrar `Cmd=STRAIGHT` en consola.
 - Indicar los umbrales de radar: regulacion desde 25 m, parada a 12 m y
   reanudacion a 15 m.
-- Indicar que el umbral de evasion esta configurado a 18 m; en la corrida el
-  autobus se reconocio a ~11.7 m y se disparo el cambio de estado de evasion.
+- Indicar que el umbral de evasión está configurado a 26 m; en la corrida el
+  autobús se reconoció a 23.74 m y la maniobra inició con 16.62 m por LiDAR.
 - Mostrar el seguimiento de pared derecha y la reincorporacion al carril derecho.
 
 ## 2:40-3:40 - Ruta derecha y peaton - Raul Adrian Delgado Rodriguez
@@ -42,7 +42,8 @@ camara, LiDAR, radar y sensores de distancia.
 - Mostrar `Cmd=RIGHT` y el giro a la derecha sin U-turn.
 - Mostrar el peaton reconocido por la camara y la distancia frontal del LiDAR.
 - Indicar el umbral de 15 m y mostrar velocidad 0 km/h antes del cruce.
-- Continuar cuando el peaton deje la trayectoria.
+- Mostrar el alto antes de la interseccion y la espera hasta la fase verde.
+- Continuar cuando el peaton deje la trayectoria y el semaforo habilite el cruce.
 
 ## 3:40-4:35 - Ruta izquierda - Jose Antonio Fernandez Perez
 

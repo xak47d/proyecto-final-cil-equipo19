@@ -149,7 +149,7 @@ if [[ $RECORD -eq 1 ]]; then
     echo "No se capturaron suficientes cuadros Full HD"
     exit 1
   fi
-  ffmpeg -y -v error -framerate 62.5 -i "$FRAMES_DIR/frame_%06d.jpg" \
+  ffmpeg -y -v error -framerate 31.25 -i "$FRAMES_DIR/frame_%06d.jpg" \
     -vf fps=30 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p \
     -movflags +faststart "$VIDEO_PATH"
   rm -rf "$FRAMES_DIR"

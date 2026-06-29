@@ -105,7 +105,7 @@ class ControllerLogicTests(unittest.TestCase):
 
     def test_route_turn_guidance_and_destinations(self):
         assist, turning, completed, next_command = controller.route_turn_guidance(
-            "left", -20.0, 50.0, 0.4, False, False
+            "left", -20.0, 48.0, 0.4, False, False
         )
         self.assertEqual(assist, -0.42)
         self.assertTrue(turning)
@@ -118,13 +118,34 @@ class ControllerLogicTests(unittest.TestCase):
         self.assertFalse(turning)
         self.assertTrue(completed)
         self.assertEqual(next_command, controller.STRAIGHT)
-        self.assertTrue(controller.route_destination_reached("left", 39.6, 48.0))
+        self.assertTrue(controller.route_destination_reached("left", 39.6, 40.0))
         self.assertTrue(controller.route_destination_reached("right", 28.0, -68.0))
         self.assertTrue(controller.route_destination_reached("straight", -190.0, 236.0))
         self.assertIsNone(controller.route_heading_assist("right", -1.0, False))
         self.assertGreater(controller.route_heading_assist("straight", 0.2, False), 0.0)
         self.assertGreater(controller.route_heading_assist("right", -1.0, True), 0.0)
         self.assertLess(controller.route_heading_assist("left", 1.0, True), 0.0)
+        self.assertGreater(
+            controller.route_corridor_assist("straight", 0.0, 229.5, 0.0, False),
+            0.0,
+        )
+        self.assertGreater(
+            controller.route_corridor_assist("left", 0.0, 47.0, 1.57, True),
+            0.0,
+        )
+        self.assertTrue(
+            controller.route_signal_stop_required(
+                "right", 40.0, -30.0, False, False, False
+            )
+        )
+        self.assertFalse(
+            controller.route_signal_stop_required(
+                "right", 40.0, -30.0, False, False, True
+            )
+        )
+        self.assertTrue(controller.right_signal_is_green(12.0))
+        self.assertFalse(controller.right_signal_is_green(25.0))
+        self.assertTrue(controller.right_signal_is_green(54.0))
         self.assertGreater(
             controller.route_approach_assist("right", 44.0, -20.0, 0.1, False, False),
             0.0,

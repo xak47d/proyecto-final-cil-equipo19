@@ -437,18 +437,25 @@ add_table(
     ["Prioridad", "Condición", "Acción"],
     [
         (1, "Peatón ≤ 15 m por Recognition y LiDAR", "Freno total"),
-        (2, "Autobús estacionado ≤ 18 m", "Separación, pared derecha, orientación y reincorporación"),
+        (2, "Autobús estacionado ≤ 26 m", "Separación a 8 km/h, pared derecha, orientación y retorno de carril"),
         (3, "Vehículo entre 25 y 12 m", "Regulación progresiva; alto ≤12 m; reanuda ≥15 m"),
         (4, "Sin riesgo superior", "Dirección CIL; 22 km/h"),
     ],
     widths=[0.7, 2.6, 3.0],
+)
+doc.add_paragraph(
+    "Antes del giro derecho, el controlador ejecuta un alto completo fuera de la intersección y permanece detenido "
+    "hasta la fase verde del controlador CrossRoads; la corrida final liberó el vehículo en `t=51.84 s`. "
+    "El preset retrasa el ingreso del tráfico SUMO conflictivo hasta que el vehículo autónomo sale "
+    "del cruce. En la ruta izquierda, el giro comienza dentro de la intersección y una asistencia lateral fija "
+    "la salida en el carril derecho este, con centro `y=39.60`."
 )
 doc.add_heading("4.3 Máquina de estados de evasión", level=2)
 add_table(
     doc,
     ["Estado", "Propósito", "Criterio de transición"],
     [
-        ("CIL", "Conducción nominal", "Autobús reconocido a ≤18 m"),
+        ("CIL", "Conducción nominal", "Autobús reconocido a ≤26 m"),
         ("EVASION_SEPARACION", "Desplazamiento inicial a la izquierda", "Pared lateral o 3.5 s"),
         ("SEGUIMIENTO_PARED_DERECHA", "Mantener separación del autobús", "Pared ausente durante 12 pasos"),
         ("RECUPERA_ORIENTACION", "Compensar giro con giroscopio", "Error <0.08 rad o 6 s"),
@@ -483,15 +490,15 @@ doc.add_paragraph(
     "el vehículo visible con encuadre global estable y genera video H.264 Full HD (1920 × 1080 px, 30 fps)."
 )
 add_figure(doc, FIG / "webots_straight.png", "Figura 4. Ruta recta: evidencia final de llegada al corredor de los silos.")
-add_figure(doc, FIG / "webots_right.png", "Figura 5. Ruta derecha: evidencia final tras freno ante peatón y giro.")
+add_figure(doc, FIG / "webots_right.png", "Figura 5. Ruta derecha: cruce iniciado después del alto y de la fase verde.")
 add_figure(doc, FIG / "webots_left.png", "Figura 6. Ruta izquierda: evidencia final en el corredor de Subway norte.")
 add_table(
     doc,
     ["Ruta", "Comando", "Resultado técnico observado"],
     [
-        ("Recto", 0, "Evasión completa y llegada GPS=(-188.01,235.51)"),
-        ("Derecha", 2, "Freno a peatón, giro contenido y llegada GPS=(28.99,-67.09)"),
-        ("Izquierda", 1, "Giro contenido y llegada GPS=(35.01,47.85)"),
+        ("Recto", 0, "Evasión sin contacto, retorno al carril y llegada GPS=(-188.05,236.83)"),
+        ("Derecha", 2, "Freno, espera hasta verde, cruce despejado y llegada GPS=(28.95,-67.48)"),
+        ("Izquierda", 1, "Salida al carril derecho este y llegada GPS=(35.00,39.60)"),
     ],
     widths=[1.2, 1.0, 4.1],
 )
@@ -500,7 +507,8 @@ add_note(
     "Validación de rutas cerrada",
     "Las tomas finales completaron las tres rutas por carril derecho, sin colisión ni U-turn. Los logs registran "
     "los cambios de estado y la llegada GPS; ffmpeg decodificó los tres clips sin errores. La revalidación corrigió "
-    "la deriva al entrar en la intersección y conserva el filtro que distingue 'bus stop' de un autobús real.",
+    "entrada insegura al cruce, el retorno tras la evasión y la salida al carril opuesto; conserva el filtro "
+    "que distingue 'bus stop' de un autobús real.",
     fill=GREEN,
 )
 
@@ -562,7 +570,7 @@ matrix_rows = [
     ("Sensores", "Recognition, LiDAR, radar, gyro, 3 laterales", "Cumple"),
     ("Peatón", "≤15 m, cámara + LiDAR, freno total", "Cumple"),
     ("Control de distancia", "25–12 m; alto ≤12; reanuda ≥15", "Cumple"),
-    ("Autobús", "≤18 m + FSM de evasión", "Cumple"),
+    ("Autobús", "≤26 m + FSM de evasión y retorno de carril", "Cumple"),
     ("SUMO", "maxVehicles 30", "Cumple"),
     ("Tres rutas", "Presets, logs y clips completos", "Cumple"),
     ("Recorridos completos", "Dos recorridos limpios por ruta", "Cumple"),
@@ -617,8 +625,8 @@ doc.add_paragraph(
 add_code(
     doc,
     "D.1 Guion completo",
-    (DOCS / "Guion_Video_Equipo19.md").read_text(),
-    font_size=5.8,
+    (DOCS / "Guion_Video_Equipo19.md").read_text().replace("\n\n", "\n"),
+    font_size=5.0,
     chunk_size=100,
 )
 

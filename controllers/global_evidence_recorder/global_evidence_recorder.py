@@ -39,13 +39,19 @@ def main() -> None:
     frames_dir.mkdir(parents=True, exist_ok=True)
 
     frame = 0
+    step_count = 0
     while supervisor.step(timestep) != -1:
         x, y, z = ego.getPosition()
         translation.setSFVec3f(
             [x + camera_offset[0], y + camera_offset[1], z + camera_offset[2]]
         )
-        camera.saveImage(str(frames_dir / f"frame_{frame:06d}.jpg"), 95)
-        frame += 1
+        # The world advances at 62.5 Hz.  Saving every second step gives a
+        # direct 31.25 fps source and avoids writing thousands of frames that
+        # ffmpeg would immediately discard for the 30 fps deliverable.
+        if step_count % 2 == 0:
+            camera.saveImage(str(frames_dir / f"frame_{frame:06d}.jpg"), 95)
+            frame += 1
+        step_count += 1
 
 
 if __name__ == "__main__":

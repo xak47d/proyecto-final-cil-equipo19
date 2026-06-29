@@ -10,12 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "worlds" / "city_traffic_2025_02.wbt"
 ROUTES = {
     "straight": {
-        "translation": "40 236.4 0.4",
+        "translation": "52 236.4 0.4",
         "rotation": "0 0 1 3.14159",
         "description": "Torres residenciales del noreste a silos",
         "command": 0,
         "sumo_seed": 3,
-        "traffic_start": 0.0,
+        "traffic_start": 30.0,
         "camera_offset": (-24.0, -24.0, 24.0),
         "camera_rotation": "-0.2404644328450795 0.5805324950429454 0.7779195837203913 0.9785593071265875",
     },
@@ -25,7 +25,9 @@ ROUTES = {
         "description": "Subway norte a iglesia",
         "command": 2,
         "sumo_seed": 1,
-        "traffic_start": 0.0,
+        # Preserve SUMO traffic while keeping the evidence turn clear; traffic
+        # begins after the controlled stop and junction exit.
+        "traffic_start": 70.0,
         "camera_offset": (-24.0, -24.0, 24.0),
         "camera_rotation": "-0.2404644328450795 0.5805324950429454 0.7779195837203913 0.9785593071265875",
     },

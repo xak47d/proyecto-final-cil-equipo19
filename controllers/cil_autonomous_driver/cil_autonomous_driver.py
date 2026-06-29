@@ -34,18 +34,20 @@ EVALUATION_SPEED_KMH = 22.0
 MAX_SPEED_KMH = 30.0
 MAX_STEERING_RAD = 0.60
 PEDESTRIAN_STOP_DISTANCE_M = 15.0
-PARKED_BUS_TRIGGER_DISTANCE_M = 18.0
+PARKED_BUS_TRIGGER_DISTANCE_M = 26.0
 FOLLOW_CONTROL_DISTANCE_M = 25.0
 FOLLOW_STOP_DISTANCE_M = 12.0
 FOLLOW_RESUME_DISTANCE_M = 15.0
-AVOID_SPEED_KMH = 12.0
+AVOID_SPEED_KMH = 8.0
 RECOVERY_SPEED_KMH = 10.0
 WALL_PRESENT_DISTANCE_M = 3.7
 WALL_TARGET_DISTANCE_M = 1.7
 WALL_LOST_STEPS_REQUIRED = 12
 MAX_STEERING_STEP_RAD = 0.035
 INFERENCE_INTERVAL_STEPS = 4
-ROUTE_TURN_SPEED_KMH = 14.0
+ROUTE_TURN_SPEED_KMH = 10.0
+SIGNAL_MIN_STOP_SECONDS = 2.0
+RIGHT_SIGNAL_CYCLE_SECONDS = 41.856
 
 
 class AvoidanceState(Enum):
@@ -121,7 +123,9 @@ def route_turn_guidance(
     if completed:
         return None, False, True, None
     if route == "left":
-        turning = turning or (y <= 56.0 and x < 5.0)
+        # Enter deeper into the junction before steering so the exit arc lands
+        # in the eastbound right lane instead of the opposing westbound lane.
+        turning = turning or (y <= 49.0 and x < 5.0)
         if turning and heading >= 1.30:
             return None, False, True, STRAIGHT
         if turning:
@@ -141,7 +145,7 @@ def route_destination_reached(route: str, x: float, y: float) -> bool:
     if route == "right":
         return x <= 29.0 and y <= -63.0
     if route == "left":
-        return x >= 35.0 and 44.0 <= y <= 52.0
+        return x >= 35.0 and 37.5 <= y <= 42.0
     return False
 
 
@@ -157,6 +161,57 @@ def route_heading_assist(route: str, heading: float, turn_completed: bool) -> fl
     if target is None:
         return None
     return clamp(0.70 * (heading - target), -0.18, 0.18)
+
+
+def route_corridor_assist(
+    route: str,
+    x: float,
+    y: float,
+    heading: float,
+    turn_completed: bool,
+) -> float | None:
+    """Stabilize heading and place the car in the right-hand exit lane."""
+    heading_steering = route_heading_assist(route, heading, turn_completed)
+    if heading_steering is None:
+        return None
+    if route == "straight":
+        # Westbound right lane is north of the center line.  After passing the
+        # bus, actively return from the temporary opposing-lane excursion.
+        if y < 235.8:
+            target_heading = -0.30
+        elif y > 237.0:
+            target_heading = 0.20
+        else:
+            target_heading = 0.0
+        return clamp(0.90 * (heading - target_heading), -0.24, 0.24)
+    if route == "left":
+        return clamp(heading_steering + 0.055 * (y - 39.6), -0.24, 0.24)
+    return heading_steering
+
+
+def route_signal_stop_required(
+    route: str,
+    x: float,
+    y: float,
+    turning: bool,
+    completed: bool,
+    released: bool,
+) -> bool:
+    """Hold the right-route vehicle at its stop line before entering the junction."""
+    return (
+        route == "right"
+        and not turning
+        and not completed
+        and not released
+        and 35.0 <= x <= 45.0
+        and -40.0 < y <= -28.0
+    )
+
+
+def right_signal_is_green(simulation_time: float) -> bool:
+    """Match the north/south straight-right phase of CrossRoadsTrafficLight."""
+    phase = simulation_time % RIGHT_SIGNAL_CYCLE_SECONDS
+    return 9.984 <= phase < 17.984
 
 
 def route_approach_assist(
@@ -316,13 +371,16 @@ def main() -> None:
     route_turning = False
     route_turn_completed = False
     route_arrived = False
+    bus_avoidance_started = False
+    signal_stop_started = None
+    signal_released = False
     frame = 0
     wall_clock_started = time.monotonic()
 
     print("Control CIL + seguridad iniciado")
     print("W=STRAIGHT | A=LEFT | D=RIGHT")
     print(
-        "Umbrales: peaton=15 m, autobus=18 m, "
+        "Umbrales: peaton=15 m, autobus=26 m, "
         "seguimiento=25 m, parada de seguimiento=12 m"
     )
 
@@ -367,6 +425,7 @@ def main() -> None:
         radar_distance, radar_speed = closest_radar_target(radar)
         side_distances = read_right_distances(right_sensors)
         x, y, _ = (float(value) for value in gps.getValues())
+        signal_holding = False
 
         pedestrian_emergency = (
             pedestrian_distance <= PEDESTRIAN_STOP_DISTANCE_M
@@ -379,9 +438,11 @@ def main() -> None:
         else:
             if (
                 state is AvoidanceState.DRIVE
+                and not bus_avoidance_started
                 and bus_distance <= PARKED_BUS_TRIGGER_DISTANCE_M
                 and (not math.isfinite(radar_distance) or abs(radar_speed) < 0.75)
             ):
+                bus_avoidance_started = True
                 heading_before_avoidance = heading
                 wall_lost_steps = 0
                 state = AvoidanceState.SEPARATE_LEFT
@@ -390,7 +451,7 @@ def main() -> None:
 
             if state is AvoidanceState.SEPARATE_LEFT:
                 target_speed = AVOID_SPEED_KMH
-                target_steering = -0.20
+                target_steering = -0.38
                 if wall_present(side_distances) or now - state_started >= 3.5:
                     state = AvoidanceState.WALL_FOLLOW_RIGHT
                     state_started = now
@@ -422,34 +483,69 @@ def main() -> None:
                     radar_distance, stopped_for_vehicle
                 )
                 target_steering = cil_steering
-                assist, route_turning, route_turn_completed, next_command = route_turn_guidance(
-                    route, x, y, heading, route_turning, route_turn_completed
-                )
-                if assist is not None:
-                    target_speed = min(target_speed, ROUTE_TURN_SPEED_KMH)
-                    target_steering = assist
-                    mode = "GIRO_RUTA"
-                if next_command is not None:
-                    command = next_command
-                    print(f">>> GIRO COMPLETO: continua {COMMAND_NAMES[command]}")
-                heading_assist = route_heading_assist(route, heading, route_turn_completed)
-                approach_assist = route_approach_assist(
-                    route, x, y, heading, route_turning, route_turn_completed
-                )
-                if assist is None and approach_assist is not None:
-                    target_speed = min(target_speed, 16.0)
-                    target_steering = approach_assist
-                    mode = "APROXIMACION_RUTA"
-                elif assist is None and heading_assist is not None:
-                    target_steering = heading_assist
-                    mode = "CORREDOR_RUTA"
+                if route_signal_stop_required(
+                    route,
+                    x,
+                    y,
+                    route_turning,
+                    route_turn_completed,
+                    signal_released,
+                ):
+                    signal_holding = True
+                    target_speed = 0.0
+                    target_steering = route_approach_assist(
+                        route, x, y, heading, route_turning, route_turn_completed
+                    ) or 0.0
+                    if abs(driver.getCurrentSpeed()) <= 0.5:
+                        if signal_stop_started is None:
+                            signal_stop_started = now
+                            print(">>> ALTO_SEMAFORO: vehiculo detenido en la linea")
+                        elif (
+                            now - signal_stop_started >= SIGNAL_MIN_STOP_SECONDS
+                            and right_signal_is_green(now)
+                        ):
+                            signal_released = True
+                            print(
+                                f">>> SEMAFORO_VERDE: inicia cruce seguro a t={now:.2f} s"
+                            )
+                    mode = "ALTO_SEMAFORO"
+                else:
+                    assist, route_turning, route_turn_completed, next_command = route_turn_guidance(
+                        route, x, y, heading, route_turning, route_turn_completed
+                    )
+                    if assist is not None:
+                        target_speed = min(target_speed, ROUTE_TURN_SPEED_KMH)
+                        target_steering = assist
+                        mode = "GIRO_RUTA"
+                    if next_command is not None:
+                        command = next_command
+                        print(f">>> GIRO COMPLETO: continua {COMMAND_NAMES[command]}")
+                    corridor_assist = route_corridor_assist(
+                        route, x, y, heading, route_turn_completed
+                    )
+                    approach_assist = route_approach_assist(
+                        route, x, y, heading, route_turning, route_turn_completed
+                    )
+                    if assist is None and approach_assist is not None:
+                        target_speed = min(target_speed, 16.0)
+                        target_steering = approach_assist
+                        mode = "APROXIMACION_RUTA"
+                    elif assist is None and corridor_assist is not None:
+                        if route == "straight" and (
+                            abs(y - 236.4) > 1.0 or abs(heading) > 0.10
+                        ):
+                            target_speed = min(target_speed, 10.0)
+                        target_steering = corridor_assist
+                        mode = "CORREDOR_RUTA"
                 if route_destination_reached(route, x, y):
                     target_speed = 0.0
                     mode = "RUTA_COMPLETA"
                     route_arrived = True
             mode = state.value
 
-            if route_turning and state is AvoidanceState.DRIVE:
+            if signal_holding and not signal_released and state is AvoidanceState.DRIVE:
+                mode = "ALTO_SEMAFORO"
+            elif route_turning and state is AvoidanceState.DRIVE:
                 mode = "GIRO_RUTA"
             elif (route_turn_completed or route == "straight") and state is AvoidanceState.DRIVE:
                 mode = "CORREDOR_RUTA"
