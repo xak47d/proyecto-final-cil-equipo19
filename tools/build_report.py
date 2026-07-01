@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 FIG = DOCS / "figures"
 OUTPUT = DOCS / "Proyecto_Final_Equipo19.docx"
+YOUTUBE_URL = "https://youtu.be/YObQTAm8_VM"
 METRICS = json.loads(
     (ROOT / "controllers/cil_autonomous_driver/training_metrics.json").read_text()
 )
@@ -28,9 +29,6 @@ BLUE = "2E74B5"
 DARK_BLUE = "1F4E79"
 LIGHT_BLUE = "DCE6F1"
 LIGHT_GRAY = "F2F4F7"
-GREEN = "E2F0D9"
-AMBER = "FFF2CC"
-RED = "FCE4D6"
 BLACK = RGBColor(0, 0, 0)
 
 
@@ -130,7 +128,7 @@ def repeat_header_row(row) -> None:
             paragraph.paragraph_format.keep_with_next = True
 
 
-def add_table(doc, headers, rows, widths=None, status_col=None):
+def add_table(doc, headers, rows, widths=None):
     table = doc.add_table(rows=1, cols=len(headers))
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
@@ -152,10 +150,6 @@ def add_table(doc, headers, rows, widths=None, status_col=None):
         for i, value in enumerate(row_data):
             cells[i].text = str(value)
             cells[i].vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
-            if status_col is not None and i == status_col:
-                text = str(value).lower()
-                fill = GREEN if any(k in text for k in ("cumple", "verificado", "aprobado")) else AMBER
-                set_cell_shading(cells[i], fill)
             for para in cells[i].paragraphs:
                 para.paragraph_format.space_after = Pt(2)
                 for run in para.runs:
@@ -321,14 +315,7 @@ doc.add_paragraph(
     "de distancia y, finalmente, la dirección predicha por CIL. Se verificaron dos recorridos limpios por ruta, "
     "incluyendo evasión, frenado ante peatón y seguimiento de tráfico."
 )
-add_note(
-    doc,
-    "Estado de cierre",
-    "El reporte técnico, el código, el modelo, el notebook y la validación completa de las tres rutas están "
-    "cerrados. Sólo faltan la edición con participación de los cuatro integrantes y la publicación del video; "
-    "por integridad académica no se inventa una URL.",
-    fill=AMBER,
-)
+doc.add_paragraph(f"Video final publicado en YouTube: {YOUTUBE_URL}")
 
 doc.add_heading("1. Planteamiento y objetivos", level=1)
 doc.add_paragraph(
@@ -372,16 +359,15 @@ doc.add_paragraph(
 )
 add_table(
     doc,
-    ["Comprobación", "Resultado", "Estado"],
+    ["Comprobación", "Resultado"],
     [
-        ("Imágenes originales faltantes", 0, "Cumple"),
-        ("Imágenes originales no referenciadas", 0, "Cumple"),
-        ("Comandos válidos", "0, 1, 2", "Cumple"),
-        ("Muestras después de aumento", 12956, "Cumple > 10,000"),
-        ("Fuentes compartidas train/val", 0, "Cumple"),
+        ("Imágenes originales faltantes", 0),
+        ("Imágenes originales no referenciadas", 0),
+        ("Comandos válidos", "0, 1, 2"),
+        ("Muestras después de aumento", 12956),
+        ("Fuentes compartidas train/val", 0),
     ],
-    widths=[3.2, 1.4, 1.4],
-    status_col=2,
+    widths=[4.2, 2.1],
 )
 
 doc.add_heading("3. Arquitectura y entrenamiento", level=1)
@@ -411,11 +397,11 @@ add_table(
     doc,
     ["Métrica", "Resultado (rad)", "Criterio"],
     [
-        ("MAE global de validación", f"{METRICS['validation_mae_rad']:.4f}", "≤ 0.05 — cumple"),
-        ("MAE Straight", f"{METRICS['per_command'][0]['mae_rad']:.4f}", "Reportado"),
-        ("MAE Left", f"{METRICS['per_command'][1]['mae_rad']:.4f}", "Reportado"),
-        ("MAE Right", f"{METRICS['per_command'][2]['mae_rad']:.4f}", "Reportado"),
-        ("MSE global", f"{METRICS['validation_mse']:.4f}", "Reportado"),
+        ("MAE global de validación", f"{METRICS['validation_mae_rad']:.4f}", "Objetivo ≤ 0.05"),
+        ("MAE Straight", f"{METRICS['per_command'][0]['mae_rad']:.4f}", "Desglose por comando"),
+        ("MAE Left", f"{METRICS['per_command'][1]['mae_rad']:.4f}", "Desglose por comando"),
+        ("MAE Right", f"{METRICS['per_command'][2]['mae_rad']:.4f}", "Desglose por comando"),
+        ("MSE global", f"{METRICS['validation_mse']:.4f}", "Métrica complementaria"),
     ],
     widths=[2.8, 1.5, 2.0],
 )
@@ -437,7 +423,7 @@ add_table(
     ["Prioridad", "Condición", "Acción"],
     [
         (1, "Peatón ≤ 15 m por Recognition y LiDAR", "Freno total"),
-        (2, "Autobús estacionado ≤ 26 m", "Separación a 8 km/h, pared derecha, orientación y retorno de carril"),
+        (2, "Autobús estacionado ≤ 26 m", "Separación a 8 km/h, corredor y=233.20, límite y=232.60 y retorno a y=236.40"),
         (3, "Vehículo entre 25 y 12 m", "Regulación progresiva; alto ≤12 m; reanuda ≥15 m"),
         (4, "Sin riesgo superior", "Dirección CIL; 22 km/h"),
     ],
@@ -456,10 +442,10 @@ add_table(
     ["Estado", "Propósito", "Criterio de transición"],
     [
         ("CIL", "Conducción nominal", "Autobús reconocido a ≤26 m"),
-        ("EVASION_SEPARACION", "Desplazamiento inicial a la izquierda", "Pared lateral o 3.5 s"),
-        ("SEGUIMIENTO_PARED_DERECHA", "Mantener separación del autobús", "Pared ausente durante 12 pasos"),
-        ("RECUPERA_ORIENTACION", "Compensar giro con giroscopio", "Error <0.08 rad o 6 s"),
-        ("REINCORPORACION", "Volver suavemente a CIL", "2 s"),
+        ("EVASION_SEPARACION", "Entrar al corredor legal y=233.20", "Corredor, rumbo 0.30 rad o pared lateral"),
+        ("SEGUIMIENTO_PARED_DERECHA", "Mantener separación sin cruzar y=232.60", "Pared adquirida y luego ausente durante 12 pasos"),
+        ("RECUPERA_ORIENTACION", "Retornar hacia el carril original", "Rumbo <0.08 rad y y≥235.60, o 6 s"),
+        ("REINCORPORACION", "Fijar el centro de carril y=236.40", "Error lateral ≤0.45 m y rumbo <0.08 rad"),
     ],
     widths=[1.7, 2.2, 2.4],
 )
@@ -496,46 +482,21 @@ add_table(
     doc,
     ["Ruta", "Comando", "Resultado técnico observado"],
     [
-        ("Recto", 0, "Evasión sin contacto, retorno al carril y llegada GPS=(-188.05,236.83)"),
+        ("Recto", 0, "Mínimo y=232.77 sin cruzar doble línea; retorno y permanencia en y=236.40; llegada GPS=(-188.06,236.40)"),
         ("Derecha", 2, "Freno, espera hasta verde, cruce despejado y llegada GPS=(28.95,-67.48)"),
         ("Izquierda", 1, "Salida al carril derecho este y llegada GPS=(35.00,39.60)"),
     ],
     widths=[1.2, 1.0, 4.1],
 )
-add_note(
-    doc,
-    "Validación de rutas cerrada",
+doc.add_paragraph(
     "Las tomas finales completaron las tres rutas por carril derecho, sin colisión ni U-turn. Los logs registran "
     "los cambios de estado y la llegada GPS; ffmpeg decodificó los tres clips sin errores. La revalidación corrigió "
-    "entrada insegura al cruce, el retorno tras la evasión y la salida al carril opuesto; conserva el filtro "
-    "que distingue 'bus stop' de un autobús real.",
-    fill=GREEN,
+    "la invasión del sentido opuesto durante la evasión, fijó la permanencia posterior en y=236.40, corrigió "
+    "la entrada insegura al cruce y la salida del giro izquierdo al carril opuesto; conserva el filtro "
+    "que distingue 'bus stop' de un autobús real."
 )
 
-doc.add_heading("7. Verificación automatizada", level=1)
-doc.add_paragraph(
-    "Doce pruebas unitarias y de integridad verifican esquema y referencias del dataset, notebook reproducible, "
-    "presets, dispositivos del mundo, preprocesamiento, one-hot, límites de dirección, regulación longitudinal, "
-    "histéresis de 12/15 m y acotación del seguimiento de pared."
-)
-add_table(
-    doc,
-    ["Área", "Evidencia", "Estado"],
-    [
-        ("Dataset", "6,129 imágenes; 0 faltantes; 3 comandos", "Verificado"),
-        ("Aumento", "12,956 muestras; 0 source_id compartidos", "Verificado"),
-        ("Notebook", "19 celdas ejecutadas desde clon; HDF5 recargable", "Verificado"),
-        ("Modelo", "MAE 0.0220 rad y métricas por comando", "Verificado"),
-        ("Pruebas", "12/12 exitosas", "Verificado"),
-        ("Webots", "Tres comandos y árbitro de seguridad", "Verificado"),
-        ("Recorridos completos", "Dos tomas limpias por ruta", "Verificado"),
-        ("YouTube", "Video <6 min y URL pública", "Pendiente de publicación"),
-    ],
-    widths=[1.5, 3.3, 1.5],
-    status_col=2,
-)
-
-doc.add_heading("8. Reproducción", level=1)
+doc.add_heading("7. Reproducción", level=1)
 doc.add_paragraph("Entrenamiento: abrir el notebook en Colab y ejecutar todas las celdas. La primera celda clona el repositorio público.")
 add_code(doc, "Comandos de aceptación local", """git clone https://github.com/xak47d/proyecto-final-cil-equipo19.git
 cd proyecto-final-cil-equipo19
@@ -545,40 +506,20 @@ cd proyecto-final-cil-equipo19
 ./run_final_project.sh --route left --record
 .venv-final/bin/python -m unittest discover -s tests -v""")
 
-doc.add_heading("9. Uso de inteligencia artificial", level=1)
+doc.add_heading("8. Uso de inteligencia artificial", level=1)
 doc.add_paragraph(
     "Se utilizó OpenAI Codex basado en GPT-5 como asistente para generación de código, depuración, optimización, "
     "estructuración del notebook y del reporte, y preparación de pruebas. El equipo conserva responsabilidad sobre "
     "la revisión técnica, la ejecución en Webots, la interpretación de resultados y la entrega académica."
 )
 
-doc.add_heading("10. Conclusiones", level=1)
+doc.add_heading("9. Conclusiones", level=1)
 doc.add_paragraph(
     "La solución elimina correctamente la clase recovery y separa el aprendizaje de dirección de la recuperación "
     "operativa. El modelo supera la meta cuantitativa, el dataset queda trazable y libre de fuga, y el controlador "
-    "integra sensores heterogéneos con prioridades verificables y completó dos recorridos limpios por ruta. Los "
-    "únicos pasos externos pendientes son la edición con los cuatro integrantes y la publicación del video."
+    "integra sensores heterogéneos con prioridades verificables y completó dos recorridos limpios por ruta. "
+    f"El video final está publicado en {YOUTUBE_URL}."
 )
-
-doc.add_heading("11. Matriz de cumplimiento de la rúbrica", level=1)
-matrix_rows = [
-    ("Dataset y comandos", "CSV con encabezado; 321 recovery excluidas; 0/1/2", "Cumple"),
-    ("Aumento y división", ">10,000; split por fuente; reflejo y brillo", "Cumple"),
-    ("Notebook", "Clon, semillas, distribución, arquitectura, curvas, MAE y exportación", "Cumple"),
-    ("Modelo CIL", "CNN condicionada + callbacks", "Cumple"),
-    ("Portabilidad", "Rutas relativas y lanzador reproducible", "Cumple"),
-    ("Sensores", "Recognition, LiDAR, radar, gyro, 3 laterales", "Cumple"),
-    ("Peatón", "≤15 m, cámara + LiDAR, freno total", "Cumple"),
-    ("Control de distancia", "25–12 m; alto ≤12; reanuda ≥15", "Cumple"),
-    ("Autobús", "≤26 m + FSM de evasión y retorno de carril", "Cumple"),
-    ("SUMO", "maxVehicles 30", "Cumple"),
-    ("Tres rutas", "Presets, logs y clips completos", "Cumple"),
-    ("Recorridos completos", "Dos recorridos limpios por ruta", "Cumple"),
-    ("Reporte", "Español, anexos completos, figuras reales", "Cumple"),
-    ("Video", "Guion 5:35, cuatro integrantes", "Guion cumple; grabación pendiente"),
-    ("YouTube", "URL pública real", "Pendiente de publicación"),
-]
-add_table(doc, ["Criterio", "Evidencia", "Estado"], matrix_rows, widths=[1.7, 3.2, 1.4], status_col=2)
 
 doc.add_heading("Referencias", level=1)
 refs = [
@@ -619,8 +560,8 @@ for index, cell in enumerate(code_cells, 1):
     add_code(doc, f"C.{index} Celda {index}", source)
 doc.add_heading("Anexo D. Guion del video", level=1)
 doc.add_paragraph(
-    "El guion dura aproximadamente 5:35, distribuye la participación entre los cuatro integrantes y evita "
-    "superar los seis minutos. La URL de YouTube se incorporará sólo después de su publicación."
+    "El guion dura aproximadamente 5:35 y distribuye la participación del equipo. "
+    f"Video final publicado en YouTube: {YOUTUBE_URL}"
 )
 add_code(
     doc,

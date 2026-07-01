@@ -42,16 +42,18 @@ direccion; `ffmpeg` se usa para la codificacion final.
 El video final debe ser menor de seis minutos y debe incluir la participacion
 de los cuatro integrantes. El guion se encuentra en `docs/Guion_Video_Equipo19.md`.
 
-## Resultados verificados
+## Resultados finales
 
 - 6,129 muestras originales, sin imagenes faltantes ni referencias huerfanas.
 - 12,956 muestras tras aumento; la separacion por `source_id` evita fuga.
 - MAE de validacion global: `0.0220 rad` (objetivo: `<= 0.05 rad`).
-- Doce pruebas automatizadas cubren integridad, one-hot, preprocesamiento,
-  limites de direccion, umbrales de distancia, histéresis y presets.
+- Diecisiete pruebas automatizadas cubren integridad, one-hot, preprocesamiento,
+  limites de direccion, umbrales de distancia, histéresis, presets, corredor
+  legal de rebase y permanencia en el centro de carril `y=236.40`.
 - Webots R2025a + SUMO 1.27.1: dos recorridos limpios por ruta, frenado ante
-  peaton, control de distancia y evasion completa documentados en
+  peaton, control de distancia y evasion completa sin invadir el sentido
+  opuesto; la ruta recta vuelve a `y=236.40` y conserva ese carril hasta el
+  destino. Los resultados se documentan en
   `docs/Validacion_Webots.md`.
 
-Sólo quedan la edición con participación de los cuatro integrantes y el enlace
-de YouTube; no se incluye una URL ficticia.
+Video final publicado en YouTube: https://youtu.be/YObQTAm8_VM

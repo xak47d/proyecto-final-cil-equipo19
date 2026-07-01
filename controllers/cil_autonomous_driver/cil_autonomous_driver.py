@@ -41,8 +41,13 @@ FOLLOW_RESUME_DISTANCE_M = 15.0
 AVOID_SPEED_KMH = 8.0
 RECOVERY_SPEED_KMH = 10.0
 WALL_PRESENT_DISTANCE_M = 3.7
-WALL_TARGET_DISTANCE_M = 1.7
+WALL_TARGET_DISTANCE_M = 1.0
 WALL_LOST_STEPS_REQUIRED = 12
+BUS_PASS_TARGET_Y = 233.2
+BUS_SEPARATOR_GUARD_Y = 232.6
+BUS_NORMAL_LANE_Y = 236.4
+BUS_SEPARATION_STEERING_RAD = -0.24
+BUS_MAX_SEPARATION_HEADING_RAD = 0.30
 MAX_STEERING_STEP_RAD = 0.035
 INFERENCE_INTERVAL_STEPS = 4
 ROUTE_TURN_SPEED_KMH = 10.0
@@ -175,15 +180,7 @@ def route_corridor_assist(
     if heading_steering is None:
         return None
     if route == "straight":
-        # Westbound right lane is north of the center line.  After passing the
-        # bus, actively return from the temporary opposing-lane excursion.
-        if y < 235.8:
-            target_heading = -0.30
-        elif y > 237.0:
-            target_heading = 0.20
-        else:
-            target_heading = 0.0
-        return clamp(0.90 * (heading - target_heading), -0.24, 0.24)
+        return straight_lane_keeping_steering(y, heading)
     if route == "left":
         return clamp(heading_steering + 0.055 * (y - 39.6), -0.24, 0.24)
     return heading_steering
@@ -309,6 +306,59 @@ def wall_following_steering(distances: dict[str, float]) -> float:
     return clamp(0.22 * distance_error + 0.16 * alignment_error, -0.42, 0.42)
 
 
+def bus_separation_complete(
+    y: float, heading: float, distances: dict[str, float]
+) -> bool:
+    """Stop moving left once the legal passing corridor or bus side is reached."""
+    return (
+        y <= BUS_PASS_TARGET_Y + 0.35
+        or heading >= BUS_MAX_SEPARATION_HEADING_RAD
+        or wall_present(distances)
+    )
+
+
+def update_wall_tracking(
+    present: bool, seen: bool, lost_steps: int
+) -> tuple[bool, int, bool]:
+    """Count loss only after the right-side sensors have acquired the bus."""
+    if present:
+        return True, 0, False
+    if not seen:
+        return False, 0, False
+    lost_steps += 1
+    return True, lost_steps, lost_steps >= WALL_LOST_STEPS_REQUIRED
+
+
+def straight_bus_corridor_steering(
+    proposed_steering: float,
+    y: float,
+    heading: float,
+    target_y: float = BUS_PASS_TARGET_Y,
+) -> float:
+    """Blend bus clearance with a hard guard against the center separator."""
+    # GPS/heading establish the corridor; the side sensors only trim it.  This
+    # prevents an early long-range side return from pulling the car back toward
+    # the bus before enough lateral clearance exists.
+    corrected = 0.25 * proposed_steering + 0.55 * (target_y - y) + 1.10 * heading
+    if y <= BUS_SEPARATOR_GUARD_Y + 0.20:
+        corrected = max(corrected, 0.30)
+    return clamp(corrected, -0.24, 0.34)
+
+
+def straight_bus_rejoin_steering(y: float, heading: float) -> float:
+    """Return smoothly from the passing corridor to the normal right lane."""
+    lateral_error = BUS_NORMAL_LANE_Y - y
+    target_heading = clamp(-0.10 * lateral_error, -0.22, 0.22)
+    return clamp(heading - target_heading, -0.24, 0.24)
+
+
+def straight_lane_keeping_steering(y: float, heading: float) -> float:
+    """Continuously hold the straight route at its original lane center."""
+    lateral_error = BUS_NORMAL_LANE_Y - y
+    target_heading = clamp(-0.08 * lateral_error, -0.12, 0.12)
+    return clamp(heading - target_heading, -0.18, 0.18)
+
+
 def get_device(driver, name: str):
     try:
         return driver.getDevice(name)
@@ -365,6 +415,7 @@ def main() -> None:
     previous_time = driver.getTime()
     heading_before_avoidance = 0.0
     wall_lost_steps = 0
+    wall_seen = False
     steering_command = 0.0
     cil_steering = 0.0
     stopped_for_vehicle = False
@@ -445,37 +496,59 @@ def main() -> None:
                 bus_avoidance_started = True
                 heading_before_avoidance = heading
                 wall_lost_steps = 0
+                wall_seen = False
                 state = AvoidanceState.SEPARATE_LEFT
                 state_started = now
                 print(f">>> EVASION: autobus a {lidar_distance:.2f} m")
 
             if state is AvoidanceState.SEPARATE_LEFT:
                 target_speed = AVOID_SPEED_KMH
-                target_steering = -0.38
-                if wall_present(side_distances) or now - state_started >= 3.5:
+                target_steering = BUS_SEPARATION_STEERING_RAD
+                if route == "straight":
+                    target_steering = straight_bus_corridor_steering(
+                        target_steering, y, heading
+                    )
+                if bus_separation_complete(y, heading, side_distances):
                     state = AvoidanceState.WALL_FOLLOW_RIGHT
                     state_started = now
             elif state is AvoidanceState.WALL_FOLLOW_RIGHT:
                 target_speed = AVOID_SPEED_KMH
                 target_steering = wall_following_steering(side_distances)
-                if wall_present(side_distances):
-                    wall_lost_steps = 0
-                else:
-                    wall_lost_steps += 1
-                if wall_lost_steps >= WALL_LOST_STEPS_REQUIRED:
+                if route == "straight":
+                    target_steering = straight_bus_corridor_steering(
+                        target_steering, y, heading
+                    )
+                wall_seen, wall_lost_steps, wall_cleared = update_wall_tracking(
+                    wall_present(side_distances), wall_seen, wall_lost_steps
+                )
+                if wall_cleared:
                     state = AvoidanceState.RECOVER_HEADING
                     state_started = now
             elif state is AvoidanceState.RECOVER_HEADING:
                 heading_error = heading_before_avoidance - heading
                 target_speed = RECOVERY_SPEED_KMH
                 target_steering = clamp(-1.8 * heading_error, -0.38, 0.38)
-                if abs(heading_error) < 0.08 or now - state_started >= 6.0:
+                if route == "straight":
+                    target_steering = straight_bus_rejoin_steering(y, heading)
+                if (
+                    abs(heading_error) < 0.08
+                    and (route != "straight" or y >= BUS_NORMAL_LANE_Y - 0.8)
+                ) or now - state_started >= 6.0:
                     state = AvoidanceState.REJOIN
                     state_started = now
             elif state is AvoidanceState.REJOIN:
                 target_speed = RECOVERY_SPEED_KMH
-                target_steering = cil_steering
-                if now - state_started >= 2.0:
+                if route == "straight":
+                    target_steering = straight_bus_rejoin_steering(y, heading)
+                else:
+                    target_steering = cil_steering
+                if route == "straight":
+                    rejoin_complete = (
+                        abs(y - BUS_NORMAL_LANE_Y) <= 0.45 and abs(heading) < 0.08
+                    )
+                else:
+                    rejoin_complete = now - state_started >= 2.0
+                if rejoin_complete:
                     state = AvoidanceState.DRIVE
                     state_started = now
             else:

@@ -102,6 +102,54 @@ class ControllerLogicTests(unittest.TestCase):
         )
         self.assertTrue(math.isfinite(steering))
         self.assertLessEqual(abs(steering), 0.42)
+        self.assertEqual(controller.WALL_TARGET_DISTANCE_M, 1.0)
+
+    def test_bus_separation_stops_at_corridor_heading_or_side_detection(self):
+        clear = {"front": 5.0, "middle": 5.0, "rear": 5.0}
+        side = {"front": 5.0, "middle": 1.5, "rear": 5.0}
+        self.assertFalse(controller.bus_separation_complete(236.4, 0.1, clear))
+        self.assertTrue(controller.bus_separation_complete(233.5, 0.1, clear))
+        self.assertTrue(controller.bus_separation_complete(236.4, 0.30, clear))
+        self.assertTrue(controller.bus_separation_complete(236.4, 0.1, side))
+
+    def test_wall_must_be_seen_before_loss_can_finish_following(self):
+        seen, lost, cleared = controller.update_wall_tracking(False, False, 0)
+        self.assertEqual((seen, lost, cleared), (False, 0, False))
+        seen, lost, cleared = controller.update_wall_tracking(True, seen, lost)
+        self.assertEqual((seen, lost, cleared), (True, 0, False))
+        for _ in range(controller.WALL_LOST_STEPS_REQUIRED):
+            seen, lost, cleared = controller.update_wall_tracking(False, seen, lost)
+        self.assertTrue(cleared)
+
+    def test_bus_corridor_guard_steers_away_from_separator(self):
+        steering = controller.straight_bus_corridor_steering(
+            -0.42, controller.BUS_SEPARATOR_GUARD_Y, 0.25
+        )
+        self.assertGreaterEqual(steering, 0.30)
+        bounded = controller.straight_bus_corridor_steering(-1.0, 236.4, 0.0)
+        self.assertGreaterEqual(bounded, -0.24)
+        establishing_clearance = controller.straight_bus_corridor_steering(
+            0.42, 235.7, 0.30
+        )
+        self.assertLess(establishing_clearance, 0.0)
+
+    def test_bus_rejoin_is_smooth_bounded_and_points_to_normal_lane(self):
+        from_pass_lane = controller.straight_bus_rejoin_steering(233.2, 0.0)
+        self.assertGreater(from_pass_lane, 0.0)
+        self.assertLessEqual(from_pass_lane, 0.24)
+        above_normal_lane = controller.straight_bus_rejoin_steering(237.0, 0.0)
+        self.assertLess(above_normal_lane, 0.0)
+
+    def test_straight_lane_keeper_continuously_targets_original_lane(self):
+        self.assertAlmostEqual(
+            controller.straight_lane_keeping_steering(236.4, 0.0), 0.0
+        )
+        self.assertGreater(
+            controller.straight_lane_keeping_steering(236.0, 0.0), 0.0
+        )
+        self.assertLess(
+            controller.straight_lane_keeping_steering(236.8, 0.0), 0.0
+        )
 
     def test_route_turn_guidance_and_destinations(self):
         assist, turning, completed, next_command = controller.route_turn_guidance(
